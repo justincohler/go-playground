@@ -7,8 +7,11 @@ import (
 	"strings"
 )
 
-func intersect(slice1 []string, slice2 []string) []string {
-	// Map to contain unique slice1 values
+// Intersect takes in two slices and returns a
+// slice of intersecting elements from the inputs.
+// These intersecting elements must contain a "2".
+func Intersect(slice1 []string, slice2 []string) []string {
+
 	slice1Map := make(map[string]bool)
 	for _, num := range slice1 {
 		if strings.Contains(num, "2") {
@@ -56,6 +59,6 @@ func main() {
 		fmt.Println("Failed to read list 1.")
 	}
 
-	intersection := intersect(slice1, slice2)
+	intersection := Intersect(slice1, slice2)
 	fmt.Println(intersection)
 }
