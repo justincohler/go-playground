@@ -24,7 +24,7 @@ func Intersect(slice1 []string, slice2 []string) []string {
 
 	for _, num := range slice2 {
 		// Credit: https://stackoverflow.com/questions/2050391/how-to-check-if-a-map-contains-a-key-in-go
-		if _, exists := slice1Map[num]; exists && strings.Contains(num, "2") {
+		if _, ok := slice1Map[num]; ok && strings.Contains(num, "2") {
 			twos[num] = true
 		}
 	}
