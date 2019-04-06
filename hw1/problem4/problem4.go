@@ -29,6 +29,18 @@ func (recv *IntSet) Initialize(line []string) {
 	}
 }
 
+// Print formats to set formatting
+func (recv *IntSet) Print() string {
+	res := "{"
+	for k := range recv.set {
+		res += strconv.Itoa(k) + ","
+	}
+
+	res = res[:len(res)-1]
+	res += "}"
+	return res
+}
+
 // Union returns the containing struct's set unioned with
 // the "other" Intset provided.
 func (recv *IntSet) Union(other IntSet) IntSet {
@@ -82,7 +94,6 @@ func main() {
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
 
-	// Set 1
 	scanner.Scan()
 	line1 := strings.Split(scanner.Text(), " ")
 	scanner.Scan()
@@ -94,10 +105,13 @@ func main() {
 
 	switch action {
 	case "-u":
-		fmt.Println(set1.Union(set2))
+		union := set1.Union(set2)
+		fmt.Println(union.Print())
 	case "-i":
-		fmt.Println(set1.Intersect(set2))
+		intersection := set1.Intersect(set2)
+		fmt.Println(intersection.Print())
 	case "-d":
-		fmt.Println(set1.Diff(set2))
+		diff := set1.Diff(set2)
+		fmt.Println(diff.Print())
 	}
 }
