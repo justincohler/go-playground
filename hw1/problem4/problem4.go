@@ -35,7 +35,6 @@ func (recv *IntSet) Print() string {
 	for k := range recv.set {
 		res += strconv.Itoa(k) + ","
 	}
-
 	res = res[:len(res)-1]
 	res += "}"
 	return res
@@ -45,11 +44,9 @@ func (recv *IntSet) Print() string {
 // the "other" Intset provided.
 func (recv *IntSet) Union(other IntSet) IntSet {
 	union := IntSet{set: make(map[int]bool)}
-
 	for k := range recv.set {
 		union.set[k] = true
 	}
-
 	for k := range other.set {
 		union.set[k] = true
 	}
@@ -60,7 +57,6 @@ func (recv *IntSet) Union(other IntSet) IntSet {
 // containing struct's set and the "other" IntSet.
 func (recv *IntSet) Intersect(other IntSet) IntSet {
 	intersection := IntSet{set: make(map[int]bool)}
-
 	for k := range other.set {
 		if _, exists := recv.set[k]; exists {
 			intersection.set[k] = true
@@ -73,32 +69,29 @@ func (recv *IntSet) Intersect(other IntSet) IntSet {
 // containing struct's set and the "other" IntSet.
 func (recv *IntSet) Diff(other IntSet) IntSet {
 	diff := IntSet{set: make(map[int]bool)}
-
 	union := recv.Union(other)
 	intersection := recv.Intersect(other)
-
 	for k := range union.set {
 		if _, exists := intersection.set[k]; !exists {
 			diff.set[k] = true
 		}
 	}
-
 	return diff
 }
 
 func main() {
-
 	action, filePath := os.Args[1], os.Args[2]
-
 	file, _ := os.Open(filePath)
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
 
+	// Read Lines 1 & 2 explicitly (no for loop)
 	scanner.Scan()
 	line1 := strings.Split(scanner.Text(), " ")
 	scanner.Scan()
 	line2 := strings.Split(scanner.Text(), " ")
 
+	// Initialize the internal maps for each set
 	var set1, set2 IntSet
 	set1.Initialize(line1)
 	set2.Initialize(line2)
