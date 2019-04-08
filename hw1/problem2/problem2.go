@@ -14,12 +14,9 @@ import (
 // in string form to the calling function.
 func AddRangesToSet(ranges *[]string) map[int]bool {
 	set := make(map[int]bool)
-
 	for _, r := range *ranges {
-
 		if strings.Contains(r, "-") {
 			elements := strings.Split(r, "-")
-
 			from, _ := strconv.Atoi(elements[0])
 			to, _ := strconv.Atoi(elements[1])
 			for i := from; i <= to; i++ {
@@ -39,7 +36,6 @@ func AddRangesToSet(ranges *[]string) map[int]bool {
 // comprising the given ranges.
 func MergeRanges(text string) []int {
 	ranges := strings.Split(strings.Replace(text, " ", "", -1), ",")
-
 	rangeSet := AddRangesToSet(&ranges)
 
 	var merged []int
@@ -51,15 +47,9 @@ func MergeRanges(text string) []int {
 }
 
 func main() {
-
 	scanner := bufio.NewScanner(os.Stdin)
-
 	fmt.Println("Enter integers:")
-
-	if scanner.Scan() {
-		merged := MergeRanges(scanner.Text())
-		fmt.Println(merged)
-	} else {
-		fmt.Println("Failed to read integer range list.")
-	}
+	scanner.Scan()
+	merged := MergeRanges(scanner.Text())
+	fmt.Println(merged)
 }

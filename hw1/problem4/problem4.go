@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"flag"
 	"fmt"
 	"os"
 	"strconv"
@@ -80,7 +81,7 @@ func (recv *IntSet) Diff(other IntSet) IntSet {
 }
 
 func main() {
-	action, filePath := os.Args[1], os.Args[2]
+	filePath := os.Args[2]
 	file, _ := os.Open(filePath)
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
@@ -96,14 +97,20 @@ func main() {
 	set1.Initialize(line1)
 	set2.Initialize(line2)
 
-	switch action {
-	case "-u":
+	// Read flags and perform appropriate action
+	unionActionPtr := flag.Bool("u", false, "union operator")
+	intersectActionPtr := flag.Bool("i", false, "intersection operator")
+	diffActionPtr := flag.Bool("d", false, "diff operator")
+	flag.Parse()
+
+	switch {
+	case *unionActionPtr == true:
 		union := set1.Union(set2)
 		fmt.Println(union.Print())
-	case "-i":
+	case *intersectActionPtr == true:
 		intersection := set1.Intersect(set2)
 		fmt.Println(intersection.Print())
-	case "-d":
+	case *diffActionPtr == true:
 		diff := set1.Diff(set2)
 		fmt.Println(diff.Print())
 	}
