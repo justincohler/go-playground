@@ -13,20 +13,14 @@ func printIDAndShared(goID int,
 	sharedVar *int,
 	currentThreadID *int) {
 
-	//Critical Section: Increment the shared variable and print
-	//the id of the goroutine
-	// LOCK()
-	//   -- Only one thread is executing the code between a lock and unlock call.
-	// UNLOXK()
 	sharedVarMutex.Lock()
 	defer wg.Done()
 	defer sharedVarMutex.Unlock()
 
 	if *currentThreadID == goID {
-		//Only one thread is inside
+		*currentThreadID++
 		*sharedVar++
 		fmt.Printf("Gorountine id = %v, sharedVar = %v\n", goID, *sharedVar)
-		*currentThreadID++
 	} else {
 		wg.Add(1)
 		go printIDAndShared(goID, sharedVarMutex, wg, sharedVar, currentThreadID)
