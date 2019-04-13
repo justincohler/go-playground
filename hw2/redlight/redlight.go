@@ -33,6 +33,24 @@ func (v *Violations) Inc(y int, q int, amount uint64) {
 	v.Unlock()
 }
 
+// Print outputs a pretty, sorted output of total violations each year-quarter.
+func (v *Violations) Print() {
+	yearKeys := make([]int, 0, len(v.years))
+	for yearKey := range v.years {
+		yearKeys = append(yearKeys, yearKey)
+	}
+	sort.Ints(yearKeys)
+
+	for _, yearKey := range yearKeys {
+		fmt.Println(yearKey)
+		year := v.years[yearKey]
+
+		for q := 1; q <= 4; q++ {
+			fmt.Printf("\tQ%v=%v\n", q, year.quarters[q])
+		}
+	}
+}
+
 // Year structures quarterly counts.
 type Year struct {
 	year     int
@@ -102,22 +120,4 @@ func main() {
 
 	wg.Wait()
 	violations.Print()
-}
-
-// Print outputs a pretty, sorted output of total violations each year-quarter.
-func (v *Violations) Print() {
-	yearKeys := make([]int, 0, len(v.years))
-	for yearKey := range v.years {
-		yearKeys = append(yearKeys, yearKey)
-	}
-	sort.Ints(yearKeys)
-
-	for _, yearKey := range yearKeys {
-		fmt.Println(yearKey)
-		year := v.years[yearKey]
-
-		for q := 1; q <= 4; q++ {
-			fmt.Printf("\tQ%v=%v\n", q, year.quarters[q])
-		}
-	}
 }
