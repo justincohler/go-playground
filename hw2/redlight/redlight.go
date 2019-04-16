@@ -20,6 +20,7 @@ type Violations struct {
 // Inc increments a year-quarter pair by a given amount
 func (v *Violations) Inc(y int, q int, amount uint64) {
 	v.Lock()
+	defer v.Unlock()
 	_, exists := v.years[y]
 	if !exists {
 		year := Year{year: y}
@@ -29,8 +30,6 @@ func (v *Violations) Inc(y int, q int, amount uint64) {
 		year := v.years[y]
 		year.Inc(q, amount)
 	}
-
-	v.Unlock()
 }
 
 // Print outputs a pretty, sorted output of total violations each year-quarter.
