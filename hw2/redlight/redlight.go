@@ -93,9 +93,6 @@ func ProcessLines(wg *sync.WaitGroup, violations *Violations, lines [][]string, 
 }
 
 func main() {
-	THREADS := runtime.NumCPU()
-	var wg sync.WaitGroup
-
 	filePath := os.Args[1]
 	file, _ := os.Open(filePath)
 	defer file.Close()
@@ -104,9 +101,10 @@ func main() {
 	lines, _ := reader.ReadAll()
 
 	N := len(lines)
-
 	violations := Violations{years: make(map[int]*Year)}
 
+	var wg sync.WaitGroup
+	THREADS := runtime.NumCPU()
 	for i := 0; i < THREADS; i++ {
 		wg.Add(1)
 		if i == THREADS-1 {

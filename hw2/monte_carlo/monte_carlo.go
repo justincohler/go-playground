@@ -45,7 +45,6 @@ func CountCirclePoints(num uint64, circlePoints *SafeCounter, wg *sync.WaitGroup
 		if polarDistance <= 1 {
 			circlePoints.Inc()
 		}
-
 	}
 }
 
@@ -63,6 +62,5 @@ func main() {
 
 	wg.Wait()
 	pi := float64(4*circlePoints.Value()) / float64(POINTS)
-
 	fmt.Println(pi)
 }
