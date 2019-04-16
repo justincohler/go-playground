@@ -1,0 +1,22 @@
+/* hw1 guideline */
+/* MPCS52060, Spring 2019 */
+
+/* === Evaluation === */
+
+/* Completeness       68/70  */
+/* Correctness        10/10  */
+/* Design             7/10  */
+/* Style       	      10/10  */
+
+
+/* _TOTAL-SCORE_    95/100 */
+
+/* graded by Collin Olander */
+
+Problem1:
+Design -3 -> Duplicate code. Wrote two for loops to read two lists instead of one function to return a list. 
+Also, the "twos" variable in line 27 contains the answer you want. Creating another "intersection" variable to copy over those values
+is extra work.
+
+Problem4:
+Completeness -2 -> running with "go run problem4.go" and no flag or file specified gives runtime error instead of printing usage statement.
