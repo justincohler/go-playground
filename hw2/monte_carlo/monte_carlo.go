@@ -12,20 +12,20 @@ import (
 // SafeCounter offers an atomic unsigned int64 counter.
 type SafeCounter struct {
 	val uint64
-	mux sync.Mutex
+	sync.Mutex
 }
 
 // Inc thread-safely increments the counter.
 func (c *SafeCounter) Inc() {
-	c.mux.Lock()
-	defer c.mux.Unlock()
+	c.Lock()
+	defer c.Unlock()
 	c.val++
 }
 
 // Value returns the current value of the counter.
 func (c *SafeCounter) Value() uint64 {
-	c.mux.Lock()
-	defer c.mux.Unlock()
+	c.Lock()
+	defer c.Unlock()
 	return c.val
 }
 
