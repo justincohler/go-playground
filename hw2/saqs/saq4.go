@@ -10,20 +10,18 @@ import (
 func printIDAndShared(goID int,
 	sharedVarMutex *sync.Mutex,
 	wg *sync.WaitGroup,
-	sharedVar *int,
-	currentThreadID *int) {
+	sharedVar *int) {
 
 	sharedVarMutex.Lock()
 	defer wg.Done()
 	defer sharedVarMutex.Unlock()
 
-	if *currentThreadID == goID {
-		*currentThreadID++
+	if *sharedVar == goID {
 		*sharedVar++
 		fmt.Printf("Gorountine id = %v, sharedVar = %v\n", goID, *sharedVar)
 	} else {
 		wg.Add(1)
-		go printIDAndShared(goID, sharedVarMutex, wg, sharedVar, currentThreadID)
+		go printIDAndShared(goID, sharedVarMutex, wg, sharedVar)
 	}
 }
 
@@ -36,10 +34,6 @@ func main() {
 	//Each thread will increment this resource in a synchornized fashion.
 	//The last thread incrementing it being the main thread.
 	var sharedVar int
-
-	// This variable will hold the thread ID allowed to increment
-	// the shared variable, initially Thread 0.
-	currentThreadID := 0
 
 	//A mutex that is needed to allow sequential access to the shared variable
 	//Look at the Lecture 2 slides that explain the need for the mutex
@@ -76,7 +70,7 @@ func main() {
 
 		Be mindful of this on in your homework and future assignments!
 		***/
-		go printIDAndShared(goID, &mux, &wg, &sharedVar, &currentThreadID)
+		go printIDAndShared(goID, &mux, &wg, &sharedVar)
 	}
 	//The main goroutine needs to wait for all the goroutines to end
 	// before exiting the program.
