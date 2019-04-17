@@ -12,8 +12,10 @@ func printIDAndShared(goID int,
 	wg *sync.WaitGroup,
 	sharedVar *int) {
 
-	sharedVarMutex.Lock()
+	// FILO deferment will execute this last
 	defer wg.Done()
+
+	sharedVarMutex.Lock()
 	defer sharedVarMutex.Unlock()
 
 	if *sharedVar == goID {
