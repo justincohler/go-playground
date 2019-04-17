@@ -21,13 +21,13 @@ type Violations struct {
 func (v *Violations) Inc(y int, q int, amount uint64) {
 	v.Lock()
 	defer v.Unlock()
-	_, exists := v.years[y]
+	year, exists := v.years[y]
 	if !exists {
 		year := Year{year: y}
 		v.years[y] = &year
 		year.Inc(q, amount)
 	} else {
-		year := v.years[y]
+		year = v.years[y]
 		year.Inc(q, amount)
 	}
 }
@@ -54,13 +54,10 @@ func (v *Violations) Print() {
 type Year struct {
 	year     int
 	quarters map[int]uint64
-	sync.Mutex
 }
 
 // Inc increments a quarter's count.
 func (y *Year) Inc(q int, amount uint64) {
-	y.Lock()
-	defer y.Unlock()
 	if y.quarters == nil {
 		y.quarters = make(map[int]uint64)
 	}
