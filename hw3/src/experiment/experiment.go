@@ -9,28 +9,28 @@ import (
 
 // SafeCounter offers an atomic unsigned int64 counter.
 type SafeCounter struct {
-	val uint64
-	mux ppsync.Lock
+	val    uint64
+	locker sync.Locker
 }
 
 // Inc thread-safely increments the counter.
 func (c *SafeCounter) Inc() {
-	c.mux.Lock()
-	defer c.mux.Unlock()
+	c.locker.Lock()
+	defer c.locker.Unlock()
 	c.val++
 }
 
 // Value returns the current value of the counter.
 func (c *SafeCounter) Value() uint64 {
-	c.mux.Lock()
-	defer c.mux.Unlock()
+	c.locker.Lock()
+	defer c.locker.Unlock()
 	return c.val
 }
 
 // IncNum is a threaded counter.
 func IncNum(wg *sync.WaitGroup, c *SafeCounter, num int) {
 	defer wg.Done()
-	for i := 0; i < 10e6; i++ {
+	for i := 0; i < num; i++ {
 		c.Inc()
 	}
 }
@@ -42,22 +42,24 @@ func main() {
 	// ebAction := flag.Bool("eb", false, "EB Flag")
 	// aAction := flag.Bool("a", false, "A Flag")
 
+	flag.Parse()
+
 	var wg sync.WaitGroup
-	var lock ppsync.Lock
+	var locker sync.Locker
 
 	switch {
-	case *tasAction == true:
-		lock = ppsync.TASLock{}
-	case *ttasAction == true:
-		lock = ppsync.TTASLock{}
+	case *tasAction:
+		locker = &ppsync.TASLock{}
+	case *ttasAction:
+		locker = &ppsync.TTASLock{}
 	}
 
-	c := SafeCounter{mux: lock}
+	c := SafeCounter{locker: locker}
 
 	THREADS := 4
 	for i := 0; i < THREADS; i++ {
 		wg.Add(1)
-		go IncNum(&wg, &c, 10e6/THREADS)
+		go IncNum(&wg, &c, 1e6/THREADS)
 	}
 	wg.Wait()
 	fmt.Println(c.val)
