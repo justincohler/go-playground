@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"mpcs52060/justincohler/hw3/src/ppsync"
+	"runtime"
 	"sync"
 )
 
@@ -56,7 +57,7 @@ func main() {
 
 	c := SafeCounter{locker: locker}
 
-	THREADS := 4
+	THREADS := runtime.NumCPU()
 	for i := 0; i < THREADS; i++ {
 		wg.Add(1)
 		go IncNum(&wg, &c, 1e6/THREADS)
