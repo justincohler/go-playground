@@ -17,10 +17,11 @@ type ALock struct {
 // Lock locks lock. If the lock is already in use, the calling goroutine
 // blocks until the lock is available.
 func (lock *ALock) Lock() {
-	slot := atomic.AddInt32(&lock.next, 1) % lock.N
+	slot := atomic.AddInt32(&lock.next, 1)
 	for !lock.Flags[slot%lock.N] {
 	}
-	lock.Flags[slot] = false
+	lock.slot = slot
+	lock.Flags[lock.slot%lock.N] = false
 }
 
 // Unlock unlocks lock.
@@ -30,7 +31,7 @@ func (lock *ALock) Lock() {
 // It is allowed for one goroutine to lock a lock and then
 // arrange for another goroutine to unlock it.
 func (lock *ALock) Unlock() {
-	lock.Flags[(lock.next+1)%lock.N] = true
+	lock.Flags[(lock.slot+1)%lock.N] = true
 }
 
 // NewALock initializes and returns a new ALock
