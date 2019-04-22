@@ -40,24 +40,29 @@ func main() {
 	// Read Flags
 	tasAction := flag.Bool("tas", false, "TAS Flag")
 	ttasAction := flag.Bool("ttas", false, "TTAS Flag")
-	// ebAction := flag.Bool("eb", false, "EB Flag")
-	// aAction := flag.Bool("a", false, "A Flag")
+	ebAction := flag.Bool("eb", false, "EB Flag")
+	aAction := flag.Bool("a", false, "A Flag")
 
 	flag.Parse()
 
 	var wg sync.WaitGroup
 	var locker sync.Locker
 
+	THREADS := runtime.NumCPU()
+
 	switch {
 	case *tasAction:
 		locker = &ppsync.TASLock{}
 	case *ttasAction:
 		locker = &ppsync.TTASLock{}
+	case *ebAction:
+		locker = &ppsync.EBLock{}
+	case *aAction:
+		locker = ppsync.NewALock(THREADS)
 	}
 
 	c := SafeCounter{locker: locker}
 
-	THREADS := runtime.NumCPU()
 	for i := 0; i < THREADS; i++ {
 		wg.Add(1)
 		go IncNum(&wg, &c, 1e6/THREADS)
