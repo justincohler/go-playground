@@ -1,0 +1,90 @@
+% --------------------------------------------------------------
+% This is all preamble stuff that you don't have to worry about.
+% Head down to where it says "Start here"
+% --------------------------------------------------------------
+ 
+\documentclass[12pt]{article}
+ 
+\usepackage[margin=1in]{geometry} 
+\usepackage{amsmath,amsthm,amssymb}
+ 
+\newcommand{\N}{\mathbb{N}}
+\newcommand{\Z}{\mathbb{Z}}
+ 
+\newenvironment{theorem}[2][Theorem]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
+\newenvironment{lemma}[2][Lemma]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
+\newenvironment{exercise}[2][Exercise]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
+\newenvironment{problem}[2][Problem]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
+\newenvironment{question}[2][Question]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
+\newenvironment{corollary}[2][Corollary]{\begin{trivlist}
+\item[\hskip \labelsep {\bfseries #1}\hskip \labelsep {\bfseries #2.}]}{\end{trivlist}}
+
+\newenvironment{solution}{\begin{proof}[Solution]}{\end{proof}}
+ 
+\begin{document}
+
+\title{MPCS 52060: Parallel Programming Assignment 3}
+\author{Justin Cohler}
+
+\maketitle
+
+\subsection*{SAQ 1} 
+\textbf{(Ch.1 Exercise 1) For each of the following, state whether it is a safety or liveness property. Identify the bad or good thing of interest.}
+
+\begin{enumerate}
+    \item Patrons are served in the order they arrive.
+
+    (Liveness)
+    \item What goes up must come down.
+    
+    (Safety)
+    \item If two or more processes are waiting to enter their critical sections, at least one succeeds.
+    
+    (Safety)
+   \item If an interrupt occurs, then a message is printed within one second. 
+   
+   (Liveness)
+   \item If an interrupt occurs, then a message is printed.
+    
+    (Safety)
+    \item The cost of living never decreases.
+    
+    
+    \item Two things are certain: death and taxes.
+    
+    (Safety)
+    \item You can always tell a Harvard man.
+    
+    (Safety)
+\end{enumerate}
+
+\vspace{5mm}
+
+\subsection*{SAQ 2}
+\textbf{(Ch.1, Exercise 7) Running your application on two processors yields a speedup of S2. Use Amdahl’s Law to derive a formula for Sn, the speedup on n processors, in terms of n and S2.
+}
+
+\vspace{5mm}
+
+\subsection*{SAQ 3}
+\textbf{(Ch.1, Exercise 8) You have a choice between buying one uniprocessor that executes five zillion instructions per second, or a ten-processor multiprocessor where each processor executes one zillion instructions per second. Using Amdahl’s Law, explain how you would decide which to buy for a particular application.
+}
+
+\vspace{5mm}
+
+\subsection*{SAQ 4}
+\textbf{(Ch.2 Exercise 14) The L-exclusion problem is a variant of the starvation-free mutual exclusion problem. We make two changes: as many as L threads may be in the critical section at the same time, and fewer than L threads might fail (by halting) in the critical section. An implementation must satisfy the following conditions:
+\begin{itemize}
+    \item L-Exclusion: At any time, at most L threads are in the critical section.
+    \item L-Starvation-Freedom: As long as fewer than L threads are in the critical section, then some thread that wants to enter the critical section will eventually succeed (even if some threads in the critical section have halted).
+\end{itemize}
+Modify the n-process Bakery mutual exclusion algorithm to turn it into an L-exclusion algorithm. Do not consider atomic operations in your answer. You can provide a pseudo-code solution or written solution.}
+
+\vspace{5mm}
+
+\end{document}
