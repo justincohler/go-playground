@@ -17,7 +17,7 @@ type ALock struct {
 // Lock locks lock. If the lock is already in use, the calling goroutine
 // blocks until the lock is available.
 func (lock *ALock) Lock() {
-	slot := atomic.AddInt32(&lock.next, 1)
+	slot := atomic.AddInt32(&lock.next, 1) - 1
 	for !lock.Flags[slot%lock.nThreads] {
 	}
 	atomic.StoreInt32(&lock.slot, slot)
