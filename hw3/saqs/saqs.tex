@@ -7,7 +7,12 @@
  
 \usepackage[margin=1in]{geometry} 
 \usepackage{amsmath,amsthm,amssymb}
- 
+\usepackage{algorithm}
+\usepackage[noend]{algpseudocode}
+\usepackage{listings}
+\usepackage{amssymb}
+
+
 \newcommand{\N}{\mathbb{N}}
 \newcommand{\Z}{\mathbb{Z}}
  
@@ -39,28 +44,28 @@
 \begin{enumerate}
     \item Patrons are served in the order they arrive.
 
-    (Liveness)
+    (Safety) - Sequential ordering is a safety concern.
     \item What goes up must come down.
     
-    (Safety)
+    (Liveness) - Eventual correctness is a liveness concern.
     \item If two or more processes are waiting to enter their critical sections, at least one succeeds.
     
-    (Safety)
+    (Liveness) - This is essentially what deadlock freedom denotes.
    \item If an interrupt occurs, then a message is printed within one second. 
    
-   (Liveness)
+   (Safety) - A sequence of events occurs correctly (a message printed in time).
    \item If an interrupt occurs, then a message is printed.
     
-    (Safety)
+    (Liveness) - Eventual correctness of a message being printed is a liveness concern.
     \item The cost of living never decreases.
     
-    
+    (Safety) - Sequential correctness is a safety concern.
     \item Two things are certain: death and taxes.
     
-    (Safety)
+    (Liveness) - Eventually, both of these things are realized, therefore this is a liveness concern.
     \item You can always tell a Harvard man.
     
-    (Safety)
+    (Safety) - Correctness in this case regards safety.
 \end{enumerate}
 
 \vspace{5mm}
@@ -68,14 +73,41 @@
 \subsection*{SAQ 2}
 \textbf{(Ch.1, Exercise 7) Running your application on two processors yields a speedup of S2. Use Amdahl’s Law to derive a formula for Sn, the speedup on n processors, in terms of n and S2.
 }
-
 \vspace{5mm}
+
+Using Ahmdal's Law:
+    $$s_2 = 1/(1-p+p/n) = 1/(1-p+p/2) = 1/(1-p/2)$$
+    $$s_2 = 1/(1-p/2)$$
+    $$s_2 - s_2*p/2 = 1$$
+    $$s_2*p/2 = s_2 - 1$$
+    
+    $$p = 2*(s_2-1)/s_2$$
+
+
+Now we've solved $p$ in terms of $s_2$. Let's plug $s_2$ back in for $s_n$:
+    $$s_n = 1/(1-2(s_2-1)/s_2 + 2(s_2-1)/s_2/n)$$
+    $$= 1/(1-2(s_2-1)/s_2 + 2(s_2-1)/ns_2)$$
+    
+    $$s_n = 1/(1-2(s_2-1)/s_2 + 2(s_2-1)/ns_2)$$
+
 
 \subsection*{SAQ 3}
 \textbf{(Ch.1, Exercise 8) You have a choice between buying one uniprocessor that executes five zillion instructions per second, or a ten-processor multiprocessor where each processor executes one zillion instructions per second. Using Amdahl’s Law, explain how you would decide which to buy for a particular application.
 }
+Using Amdahls Law, we can define our speedup for ten-processors as follows:
+    $$Speedup = 1/(1-p+p/n) = 1/(1-p+p/10)$$
+    
+Setting the speedup equal to our single processor speed (5 ZOPS) will determine the break-even point for multi-processing.
 
-\vspace{5mm}
+    $$1 Z/s * Speedup = 5 Z/s$$
+    $$= 1 * 1/(1-p+p/10) = 5$$
+    $$\rightarrow 1 > 5 - 5p + p/2$$
+    $$\rightarrow -4 > p*(-4.5)$$
+    $$\rightarrow p > 4/4.5$$
+    $$\rightarrow p > 8/9$$
+
+
+If our application can have a parallelization ratio of greater than 8/9 (meaning 8/9ths of the application can be distributed to cores in parallel), then it becomes worthwhile to buy the ten-processor unit.
 
 \subsection*{SAQ 4}
 \textbf{(Ch.2 Exercise 14) The L-exclusion problem is a variant of the starvation-free mutual exclusion problem. We make two changes: as many as L threads may be in the critical section at the same time, and fewer than L threads might fail (by halting) in the critical section. An implementation must satisfy the following conditions:
@@ -86,5 +118,18 @@
 Modify the n-process Bakery mutual exclusion algorithm to turn it into an L-exclusion algorithm. Do not consider atomic operations in your answer. You can provide a pseudo-code solution or written solution.}
 
 \vspace{5mm}
+
+\begin{lstlisting}
+class LExclusion implements Lock {
+    Set criticalThreads 
+    Label[] label 
+    
+    public void lock() {
+        
+    }
+    
+}
+\end{lstlisting}
+
 
 \end{document}
