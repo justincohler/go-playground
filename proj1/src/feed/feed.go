@@ -47,13 +47,12 @@ func NewFeed() Feed {
 func (f *feed) Add(body string, timestamp int64) {
 	if f.start == nil {
 		f.start = newPost(body, timestamp, nil)
-		return
+	} else {
+		parent := f.start
+		for child := parent; parent.next != nil; parent = child {
+		}
+		parent.next = newPost(body, timestamp, nil)
 	}
-	iter := f.start
-	for iter.next != nil {
-		iter = iter.next
-	}
-	iter.next = newPost(body, timestamp, nil)
 }
 
 // Remove deletes the post with the given timestamp. If the timestamp
@@ -85,12 +84,10 @@ func (f *feed) Contains(timestamp int64) bool {
 	if f.start == nil {
 		return false
 	}
-	iter := f.start
-	for iter.next != nil {
-		if post := *iter; post.timestamp == timestamp {
+	for iter := f.start; iter.next != nil; iter = iter.next {
+		if iter.timestamp == timestamp {
 			return true
 		}
-		iter = iter.next
 	}
 	return false
 }
