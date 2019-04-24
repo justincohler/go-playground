@@ -12,7 +12,8 @@ func main() {
 	jackDorseyFeed.Add("just setting up my twttr", rightNow)
 	jackDorseyFeed.Add("here's another", rightNow+10)
 	fmt.Println(jackDorseyFeed.Contains(rightNow))
-
+	fmt.Println(jackDorseyFeed.Contains(rightNow - 1))
+	fmt.Println(jackDorseyFeed.Contains(rightNow + 20))
 	fmt.Println(jackDorseyFeed.Remove(rightNow + 5))
 	fmt.Println(jackDorseyFeed)
 }

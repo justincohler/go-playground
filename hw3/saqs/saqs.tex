@@ -118,14 +118,38 @@ If our application can have a parallelization ratio of greater than 8/9 (meaning
 Modify the n-process Bakery mutual exclusion algorithm to turn it into an L-exclusion algorithm. Do not consider atomic operations in your answer. You can provide a pseudo-code solution or written solution.}
 
 \vspace{5mm}
+Below, I've written pseudo-Java that replaces the boolean flag array with an int flag array. Otherwise this is very similar to the Bakery Algorithm provided in the slides.
 
 \begin{lstlisting}
 class LExclusion implements Lock {
-    Set criticalThreads 
-    Label[] label 
+    int[] flag;
+    Label[] label;
+    int l;
+    
+    public LExclusion (int n, int l) {
+        this.l = l
+        flag = new boolean[n-l];
+        label = new Label[n-l];
+        for (int i = 0; i < n-l; i++) {
+            flag[i] = 0; label[i] = 0
+        }
+    }
     
     public void lock() {
-        
+        for (int i = 1; i < n-l; i++) {
+            flag[i] = i;
+            label[i] = max(label) + 1;
+            while ((label[i],i) > (label[k],k))){
+                for (int j = 0; j < n; j++) {
+                    if (flag[j] > this.l+1)
+                        break;
+                }
+            }
+        }
+    }
+    
+    public void unlock() {
+        flag[i] = 0;
     }
     
 }
