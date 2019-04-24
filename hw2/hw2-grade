@@ -1,0 +1,26 @@
+/* hw2 guideline */
+/* MPCS52060, Fall 2018 */
+
+/* === SAQ Evaluation === */
+/* SAQ1            5/5  */ 
+/* SAQ2            5/5  */ 
+/* SAQ3		  5/5  */  
+/* SAQ4 	  10/10  */ 
+
+/* === Programming Problems === */
+/** For this assignment, we are combining completeness & correctness 
+   since they are heavily similar 
+**/ 
+/* Completeness & Correctness 50/50  */
+/* Design             	      10/10  */
+/* Style       	      	      10/10  */
+
+
+/* _TOTAL-SCORE_    100/100 */
+
+/* graded by Collin Olander */
+
+Notes:
+
+Excellent work. Good use of decomposition, structs and built in packages like runtime.NumCPU()
+For future assignments, you don't need to upload the .tex file for your pdf source code.
