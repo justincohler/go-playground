@@ -1,7 +1,10 @@
 package feed
 
 import (
+	"fmt"
+	"lock"
 	"strconv"
+	"time"
 )
 
 //Feed represents a user's twitter feed
@@ -11,6 +14,10 @@ type Feed interface {
 	Add(body string, timestamp int64)
 	Remove(timestamp int64) bool
 	Contains(timestamp int64) bool
+	Lock()
+	Unlock()
+	RLock()
+	RUnlock()
 }
 
 //feed is the internal representation of a user's twitter feed (hidden from outside packages)
@@ -18,7 +25,7 @@ type Feed interface {
 // the original fields in your implementation. You can assume the feed will not have duplicate posts
 type feed struct {
 	start *post // a pointer to the beginning post
-
+	*lock.RWLock
 }
 
 //post is the internal representation of a post on a user's twitter feed (hidden from outside packages)
@@ -95,9 +102,13 @@ func (f *feed) Contains(timestamp int64) bool {
 // String converts a feed into a string representation so you can
 // print it out. Right now this method is NOT thread safe.
 func (f *feed) String() string {
-	str := ""
-	for iter := f.start; iter != nil; iter = iter.next {
-		str += (*iter).body + "\n"
+	var str string
+	curr := f.start
+	for curr != nil {
+		unixTimeUTC := time.Unix(curr.timestamp, 0)
+		unitTimeInRFC3339 := unixTimeUTC.Format(time.RFC3339)
+		str += fmt.Sprintf("(%v,%v)", curr.body, unitTimeInRFC3339)
+		curr = curr.next
 	}
 	return str
 }
