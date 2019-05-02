@@ -1,0 +1,32 @@
+/* MPCS52060, Spring 2019 */
+
+/* === SAQ Evaluation === */
+/* SAQ1            8/8  */
+/* SAQ2            5/5  */
+Comment: Consider using \frac to make your fractions more readable
+/* SAQ3		  8/8  */
+/* SAQ4 	  2/5  */
+-3: I don't believe this works. First, I think your while loop is missing
+the key condition of "∃k flag[k]". Without this, I don't think any thread
+can lock the lock. Consider one thread trying to lock this lock. It will
+set flag[1] = 1 and label[1] = 1. If nothing else happens,
+(label[i],i) > (label[k],k) is always true as everything else in the label
+array is 0. Also, I think you want to be indexing into flag and label with
+tid's instead of i.
+
+/* === Programming Problems === */
+/* Completeness 	      44/44  */
+/* Correctness 		      8/10  */
+-2: Your EBlock doesn't sleep for delay time and instead sleeps for 2ms only.
+(Perhaps a typo?)
+
+/* Design             	      10/10  */
+/* Style       	      	      10/10  */
+
+Comment: please use relative paths for your imports in future, since your
+absolute path != my absolute path for you files
+
+/* _TOTAL-SCORE_    95/100 */
+
+/* graded by Kevin H */
+
