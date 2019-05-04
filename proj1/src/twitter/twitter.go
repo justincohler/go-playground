@@ -2,9 +2,10 @@ package main
 
 import (
 	"bufio"
-	"feed"
+	feeder "feed"
 	"fmt"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -17,14 +18,15 @@ const (
 	cSTRING   = "STRING"
 )
 
-func parseLine(line string) (string, int64, string, int64) {
-	fmt.Println(line)
+func parseLine(line string) (string, int64, string, int64, bool) {
 	line = strings.Replace(line, "{", "", -1)
 	line = strings.Replace(line, "}", "", -1)
 	args := strings.Split(line, ",")
 	commandName := args[0]
 
-	fmt.Println(args)
+	if len(args) < 2 {
+		return "", int64(0), "", int64(0), true
+	}
 	reqID, _ := strconv.ParseInt(args[1], 10, 64)
 
 	var timestamp int64
@@ -33,28 +35,31 @@ func parseLine(line string) (string, int64, string, int64) {
 		timestamp, _ = strconv.ParseInt(args[2], 10, 64)
 	} else if len(args) == 4 {
 		body = args[2]
-		timestamp, _ = strconv.ParseInt(args[4], 10, 64)
+		timestamp, _ = strconv.ParseInt(args[3], 10, 64)
 	}
 
-	return commandName, reqID, body, timestamp
+	return commandName, reqID, body, timestamp, false
 }
 
-func executeLines(wg *sync.WaitGroup, feed feed.Feed, lines []string) {
+func executeLines(wg *sync.WaitGroup, feed feeder.Feed, lines []string) {
 	defer wg.Done()
 
 	for _, line := range lines {
-		fmt.Println(line)
-		commandName, reqID, body, timestamp := parseLine(line)
+		commandName, reqID, body, timestamp, err := parseLine(line)
 
-		fmt.Println(commandName, reqID, body, timestamp)
+		if err {
+			break
+		}
+
 		var status string
 
 		switch commandName {
 		case cADD:
-			fmt.Println("{{", reqID, "}, {SUCCESS}}")
+			fmt.Println("Adding...")
 			feed.Add(body, timestamp)
-
+			fmt.Println("{{", reqID, "}, {SUCCESS}}")
 		case cREMOVE:
+			fmt.Println("Removing...")
 			if feed.Remove(timestamp) {
 				status = "SUCCESS"
 			} else {
@@ -63,6 +68,7 @@ func executeLines(wg *sync.WaitGroup, feed feed.Feed, lines []string) {
 			fmt.Println("{{", reqID, "}, {", status, "}}")
 
 		case cCONTAINS:
+			fmt.Println("Containsing...")
 			if feed.Contains(timestamp) {
 				status = "YES"
 			} else {
@@ -71,23 +77,27 @@ func executeLines(wg *sync.WaitGroup, feed feed.Feed, lines []string) {
 			fmt.Println("{{", reqID, "}, {", status, "}}")
 
 		case cSTRING:
+			fmt.Println("Stringing...")
 			fmt.Println("{{", reqID, "}, {", feed.String(), "}}")
 		}
 	}
 }
 
 func main() {
-	var feed feed.Feed
 	var wg sync.WaitGroup
 
-	// nThreads, _ := strconv.Atoi(os.Args[1])
+	nThreads, _ := strconv.Atoi(os.Args[1])
 	blockSize, _ := strconv.Atoi(os.Args[2])
+
+	runtime.GOMAXPROCS(nThreads)
 
 	scanner := bufio.NewScanner(os.Stdin)
 
 	var lines []string
 
 	var res bool
+	var f feeder.Feed
+	f = feeder.NewFeed()
 	for {
 		lines = make([]string, blockSize)
 		for i := 0; i < blockSize; i++ {
@@ -101,12 +111,12 @@ func main() {
 			break
 		}
 		wg.Add(1)
-		go executeLines(&wg, feed, lines)
+		go executeLines(&wg, f, lines)
 	}
 
 	// Add leftover records (N % blockSize)
 	wg.Add(1)
-	go executeLines(&wg, feed, lines)
+	go executeLines(&wg, f, lines)
 
 	wg.Wait()
 

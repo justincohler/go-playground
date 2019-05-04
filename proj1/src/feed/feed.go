@@ -23,7 +23,7 @@ type Feed interface {
 // the original fields in your implementation. You can assume the feed will not have duplicate posts
 type feed struct {
 	start *post // a pointer to the beginning post
-	*sync.RWMutex
+	sync.RWMutex
 }
 
 //post is the internal representation of a post on a user's twitter feed (hidden from outside packages)
@@ -57,7 +57,15 @@ func (f *feed) Add(body string, timestamp int64) {
 		f.start = newPost(body, timestamp, nil)
 	} else {
 		parent := f.start
-		for child := parent; parent.next != nil; parent = child {
+		for parent.next != nil {
+			child := parent.next
+			if child.timestamp > timestamp {
+				newChild := newPost(body, timestamp, child)
+				parent.next = newChild
+				break
+			}
+			parent = parent.next
+
 		}
 		parent.next = newPost(body, timestamp, nil)
 	}
@@ -78,11 +86,13 @@ func (f *feed) Remove(timestamp int64) bool {
 		return true
 	}
 
-	for child := parent.next; parent.next != nil; parent = child {
+	for parent.next != nil {
+		child := parent.next
 		if child.timestamp == timestamp {
 			parent.next = child.next
 			return true
 		}
+		parent = child
 	}
 	return false
 }
@@ -94,13 +104,20 @@ func (f *feed) Contains(timestamp int64) bool {
 	f.RLock()
 	defer f.RUnlock()
 
-	if f.start == nil {
+	parent := f.start
+
+	if parent == nil {
 		return false
+	} else if parent.timestamp == timestamp {
+		return true
 	}
-	for iter := f.start; iter.next != nil; iter = iter.next {
-		if iter.timestamp == timestamp {
+
+	for parent.next != nil {
+		child := parent.next
+		if child.timestamp == timestamp {
 			return true
 		}
+		parent = child
 	}
 	return false
 }
