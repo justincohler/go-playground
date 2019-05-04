@@ -2,9 +2,9 @@ package feed
 
 import (
 	"fmt"
-	// "lock"
+	"lock"
 	"strconv"
-	"sync"
+	// "sync"
 	"time"
 )
 
@@ -23,7 +23,7 @@ type Feed interface {
 // the original fields in your implementation. You can assume the feed will not have duplicate posts
 type feed struct {
 	start *post // a pointer to the beginning post
-	sync.RWMutex
+	lock.RWLock
 }
 
 //post is the internal representation of a post on a user's twitter feed (hidden from outside packages)
@@ -55,20 +55,20 @@ func (f *feed) Add(body string, timestamp int64) {
 
 	if f.start == nil {
 		f.start = newPost(body, timestamp, nil)
-	} else {
-		parent := f.start
-		for parent.next != nil {
-			child := parent.next
-			if child.timestamp > timestamp {
-				newChild := newPost(body, timestamp, child)
-				parent.next = newChild
-				break
-			}
-			parent = parent.next
-
-		}
-		parent.next = newPost(body, timestamp, nil)
+		return
+	} else if f.start.timestamp > timestamp {
+		f.start = newPost(body, timestamp, f.start)
 	}
+
+	parent := f.start
+	for parent.next != nil {
+		if parent.next.timestamp > timestamp {
+			parent.next = newPost(body, timestamp, parent.next)
+			return
+		}
+		parent = parent.next
+	}
+	parent.next = newPost(body, timestamp, nil)
 }
 
 // Remove deletes the post with the given timestamp. If the timestamp
@@ -104,20 +104,15 @@ func (f *feed) Contains(timestamp int64) bool {
 	f.RLock()
 	defer f.RUnlock()
 
-	parent := f.start
-
-	if parent == nil {
+	if f.start == nil {
 		return false
-	} else if parent.timestamp == timestamp {
-		return true
 	}
-
-	for parent.next != nil {
-		child := parent.next
-		if child.timestamp == timestamp {
+	curr := f.start
+	for curr != nil {
+		if curr.timestamp == timestamp {
 			return true
 		}
-		parent = child
+		curr = curr.next
 	}
 	return false
 }
@@ -133,7 +128,7 @@ func (f *feed) String() string {
 	for curr != nil {
 		unixTimeUTC := time.Unix(curr.timestamp, 0)
 		unitTimeInRFC3339 := unixTimeUTC.Format(time.RFC3339)
-		str += fmt.Sprintf("(%v,%v)", curr.body, unitTimeInRFC3339)
+		str += fmt.Sprintf("(%v,%v)->", curr.body, unitTimeInRFC3339)
 		curr = curr.next
 	}
 	return str
