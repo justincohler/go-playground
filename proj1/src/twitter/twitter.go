@@ -2,7 +2,7 @@ package main
 
 import (
 	"bufio"
-	feeder "feed"
+	"feed"
 	"fmt"
 	"os"
 	"runtime"
@@ -17,6 +17,19 @@ const (
 	cCONTAINS = "CONTAINS"
 	cSTRING   = "STRING"
 )
+
+// TaskQueue is a queue to hold a condition for reading.
+type TaskQueue struct {
+	sync.Mutex
+	cond *sync.Cond
+}
+
+// NewTaskQueue instantiates a condition for the queue.
+func NewTaskQueue() *TaskQueue {
+	q := TaskQueue{}
+	q.cond = sync.NewCond(&q)
+	return &q
+}
 
 func parseLine(line string) (string, int64, string, int64, bool) {
 	line = strings.Replace(line, "{", "", -1)
@@ -41,9 +54,8 @@ func parseLine(line string) (string, int64, string, int64, bool) {
 	return commandName, reqID, body, timestamp, false
 }
 
-func executeLines(wg *sync.WaitGroup, feed feeder.Feed, lines []string) {
+func executeLines(wg *sync.WaitGroup, f feed.Feed, lines []string) {
 	defer wg.Done()
-
 	for _, line := range lines {
 		commandName, reqID, body, timestamp, err := parseLine(line)
 
@@ -55,10 +67,10 @@ func executeLines(wg *sync.WaitGroup, feed feeder.Feed, lines []string) {
 
 		switch commandName {
 		case cADD:
-			feed.Add(body, timestamp)
+			f.Add(body, timestamp)
 			fmt.Println("{{", reqID, "}, {SUCCESS}}")
 		case cREMOVE:
-			if feed.Remove(timestamp) {
+			if f.Remove(timestamp) {
 				status = "SUCCESS"
 			} else {
 				status = "FAILED"
@@ -66,7 +78,7 @@ func executeLines(wg *sync.WaitGroup, feed feeder.Feed, lines []string) {
 			fmt.Println("{{", reqID, "}, {", status, "}}")
 
 		case cCONTAINS:
-			if feed.Contains(timestamp) {
+			if f.Contains(timestamp) {
 				status = "YES"
 			} else {
 				status = "NO"
@@ -74,7 +86,7 @@ func executeLines(wg *sync.WaitGroup, feed feeder.Feed, lines []string) {
 			fmt.Println("{{", reqID, "}, {", status, "}}")
 
 		case cSTRING:
-			fmt.Println("{{", reqID, "}, {", feed.String(), "}}")
+			fmt.Println("{{", reqID, "}, {", f.String(), "}}")
 		}
 	}
 }
@@ -87,10 +99,25 @@ func main() {
 	runtime.GOMAXPROCS(nThreads)
 	scanner := bufio.NewScanner(os.Stdin)
 
+	q := NewTaskQueue()
+	f := feed.NewFeed()
+
 	var lines []string
 	var res bool
-	f := feeder.NewFeed()
+
+	counter := 0
 	for {
+		for i := 0; i < nThreads; i++ {
+			wg.Add(1)
+			go func(q *TaskQueue, f feed.Feed, lines *[]string) {
+				q.Lock()
+				q.cond.Wait()
+				q.Unlock()
+				executeLines(&wg, f, *lines)
+			}(q, f, &lines)
+		}
+
+		q.Lock()
 		lines = make([]string, blockSize)
 		for i := 0; i < blockSize; i++ {
 			res = scanner.Scan()
@@ -98,17 +125,18 @@ func main() {
 				break
 			}
 			lines[i] = scanner.Text()
+			// fmt.Println(counter)
+			counter++
 		}
 		if !res {
+			q.Unlock()
+			q.cond.Broadcast()
 			break
+		} else {
+			q.Unlock()
+			q.cond.Signal()
 		}
-		wg.Add(1)
-		go executeLines(&wg, f, lines)
 	}
-
-	// Add leftover records (N % blockSize)
-	wg.Add(1)
-	go executeLines(&wg, f, lines)
 
 	wg.Wait()
 
