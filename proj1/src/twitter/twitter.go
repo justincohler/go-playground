@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 const (
@@ -16,39 +17,14 @@ const (
 	cSTRING   = "STRING"
 )
 
-// Command is a generic Interface for Feed Types.
-type Command interface {
-}
-
-// Add puts the given body onto the feed.
-type Add struct {
-	reqID     int64
-	body      string
-	timestamp int64
-}
-
-// Remove removes a given reqID from the feed.
-type Remove struct {
-	reqID     int64
-	timestamp int64
-}
-
-// Contains returns the existence of a given reqID on the feed.
-type Contains struct {
-	reqID     int64
-	timestamp int64
-}
-
-// String prints the details of a given reqID on the feed.
-type String struct {
-	reqID int64
-}
-
 func parseLine(line string) (string, int64, string, int64) {
+	fmt.Println(line)
 	line = strings.Replace(line, "{", "", -1)
 	line = strings.Replace(line, "}", "", -1)
 	args := strings.Split(line, ",")
 	commandName := args[0]
+
+	fmt.Println(args)
 	reqID, _ := strconv.ParseInt(args[1], 10, 64)
 
 	var timestamp int64
@@ -63,55 +39,76 @@ func parseLine(line string) (string, int64, string, int64) {
 	return commandName, reqID, body, timestamp
 }
 
-func executeLine(feed *feed.Feed, line string) {
-	commandName, reqID, body, timestamp := parseLine(line)
+func executeLines(wg *sync.WaitGroup, feed feed.Feed, lines []string) {
+	defer wg.Done()
 
-	var res bool
-	var status string
+	for _, line := range lines {
+		fmt.Println(line)
+		commandName, reqID, body, timestamp := parseLine(line)
 
-	switch commandName {
-	case cADD:
-		(*feed).Lock()
-		defer feed.Unlock()
-		feed.Add(body, timestamp)
-		fmt.Println("{{", reqID, "}, {SUCCESS}}")
-	case cREMOVE:
-		feed.Lock()
-		defer feed.Unlock()
+		fmt.Println(commandName, reqID, body, timestamp)
+		var status string
 
-		if feed.Remove(timestamp) {
-			status = "SUCCESS"
-		} else {
-			status = "FAILED"
+		switch commandName {
+		case cADD:
+			fmt.Println("{{", reqID, "}, {SUCCESS}}")
+			feed.Add(body, timestamp)
+
+		case cREMOVE:
+			if feed.Remove(timestamp) {
+				status = "SUCCESS"
+			} else {
+				status = "FAILED"
+			}
+			fmt.Println("{{", reqID, "}, {", status, "}}")
+
+		case cCONTAINS:
+			if feed.Contains(timestamp) {
+				status = "YES"
+			} else {
+				status = "NO"
+			}
+			fmt.Println("{{", reqID, "}, {", status, "}}")
+
+		case cSTRING:
+			fmt.Println("{{", reqID, "}, {", feed.String(), "}}")
 		}
-		fmt.Println("{{", reqID, "}, {", status, "}}")
-
-	case cCONTAINS:
-		feed.RLock()
-		defer feed.RUnlock()
-
-		if feed.Contains(timestamp) {
-			status = "YES"
-		} else {
-			status = "NO"
-		}
-		fmt.Println("{{", reqID, "}, {", status, "}}")
-
-	case cSTRING:
-		feed.RLock()
-		defer feed.RUnlock()
-		fmt.Println("{{", reqID, "}, {", feed.String(), "}}")
 	}
 }
 
 func main() {
 	var feed feed.Feed
+	var wg sync.WaitGroup
+
+	// nThreads, _ := strconv.Atoi(os.Args[1])
+	blockSize, _ := strconv.Atoi(os.Args[2])
 
 	scanner := bufio.NewScanner(os.Stdin)
-	for scanner.Scan() {
 
-		go executeLine(feed, scanner.Text())
+	var lines []string
+
+	var res bool
+	for {
+		lines = make([]string, blockSize)
+		for i := 0; i < blockSize; i++ {
+			res = scanner.Scan()
+			if !res {
+				break
+			}
+			lines[i] = scanner.Text()
+		}
+		if !res {
+			break
+		}
+		wg.Add(1)
+		go executeLines(&wg, feed, lines)
 	}
+
+	// Add leftover records (N % blockSize)
+	wg.Add(1)
+	go executeLines(&wg, feed, lines)
+
+	wg.Wait()
 
 	if err := scanner.Err(); err != nil {
 		fmt.Fprintln(os.Stderr, "error:", err)

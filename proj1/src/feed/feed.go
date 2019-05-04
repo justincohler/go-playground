@@ -2,8 +2,9 @@ package feed
 
 import (
 	"fmt"
-	"lock"
+	// "lock"
 	"strconv"
+	"sync"
 	"time"
 )
 
@@ -14,10 +15,7 @@ type Feed interface {
 	Add(body string, timestamp int64)
 	Remove(timestamp int64) bool
 	Contains(timestamp int64) bool
-	Lock()
-	Unlock()
-	RLock()
-	RUnlock()
+	String() string
 }
 
 //feed is the internal representation of a user's twitter feed (hidden from outside packages)
@@ -25,7 +23,7 @@ type Feed interface {
 // the original fields in your implementation. You can assume the feed will not have duplicate posts
 type feed struct {
 	start *post // a pointer to the beginning post
-	*lock.RWLock
+	*sync.RWMutex
 }
 
 //post is the internal representation of a post on a user's twitter feed (hidden from outside packages)
@@ -52,6 +50,9 @@ func NewFeed() Feed {
 // recent timestamp, etc. You may need to insert a new post somewhere in the feed because
 // the given timestamp may not be the most recent.
 func (f *feed) Add(body string, timestamp int64) {
+	f.Lock()
+	defer f.Unlock()
+
 	if f.start == nil {
 		f.start = newPost(body, timestamp, nil)
 	} else {
@@ -66,6 +67,8 @@ func (f *feed) Add(body string, timestamp int64) {
 // is not included in a post of the feed then the feed remains
 // unchanged. Return true if the deletion was a success, otherwise return false
 func (f *feed) Remove(timestamp int64) bool {
+	f.Lock()
+	defer f.Unlock()
 
 	parent := f.start
 	if parent == nil {
@@ -88,6 +91,9 @@ func (f *feed) Remove(timestamp int64) bool {
 // inside a feed. The function returns true if there is a post
 // with the timestamp, otherwise, false.
 func (f *feed) Contains(timestamp int64) bool {
+	f.RLock()
+	defer f.RUnlock()
+
 	if f.start == nil {
 		return false
 	}
@@ -102,6 +108,9 @@ func (f *feed) Contains(timestamp int64) bool {
 // String converts a feed into a string representation so you can
 // print it out. Right now this method is NOT thread safe.
 func (f *feed) String() string {
+	f.RLock()
+	defer f.RUnlock()
+
 	var str string
 	curr := f.start
 	for curr != nil {
