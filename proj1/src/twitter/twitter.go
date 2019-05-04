@@ -55,11 +55,9 @@ func executeLines(wg *sync.WaitGroup, feed feeder.Feed, lines []string) {
 
 		switch commandName {
 		case cADD:
-			fmt.Println("Adding...")
 			feed.Add(body, timestamp)
 			fmt.Println("{{", reqID, "}, {SUCCESS}}")
 		case cREMOVE:
-			fmt.Println("Removing...")
 			if feed.Remove(timestamp) {
 				status = "SUCCESS"
 			} else {
@@ -68,7 +66,6 @@ func executeLines(wg *sync.WaitGroup, feed feeder.Feed, lines []string) {
 			fmt.Println("{{", reqID, "}, {", status, "}}")
 
 		case cCONTAINS:
-			fmt.Println("Containsing...")
 			if feed.Contains(timestamp) {
 				status = "YES"
 			} else {
@@ -77,7 +74,6 @@ func executeLines(wg *sync.WaitGroup, feed feeder.Feed, lines []string) {
 			fmt.Println("{{", reqID, "}, {", status, "}}")
 
 		case cSTRING:
-			fmt.Println("Stringing...")
 			fmt.Println("{{", reqID, "}, {", feed.String(), "}}")
 		}
 	}
