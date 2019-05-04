@@ -17,83 +17,86 @@ const (
 	cSTRING   = "STRING"
 )
 
-// TaskQueue is a queue to hold a condition for reading.
-type TaskQueue struct {
+// TaskContext is a queue to hold a condition for reading.
+type TaskContext struct {
 	sync.Mutex
-	cond          *sync.Cond
+	readCond      *sync.Cond
+	writeCond     *sync.Cond
+	blockSize     int
+	queue         []string
 	terminateFlag bool
+	wg            sync.WaitGroup
 }
 
-// NewTaskQueue instantiates a condition for the queue.
-func NewTaskQueue() *TaskQueue {
-	q := TaskQueue{}
-	q.cond = sync.NewCond(&q)
-	return &q
+// NewTaskContext instantiates a condition for the queue.
+func NewTaskContext(blockSize int) *TaskContext {
+	ctx := TaskContext{blockSize: blockSize}
+	ctx.readCond = sync.NewCond(&ctx)
+	ctx.writeCond = sync.NewCond(&ctx)
+	return &ctx
 }
 
-func addQueueConsumer(wg *sync.WaitGroup, q *TaskQueue, f feed.Feed, lines *[]string) {
-	defer wg.Done()
-	for { // Continuously wait for work
-		q.Lock()
-		q.cond.Wait()
-		executeLines(f, *lines)
-		if q.terminateFlag {
-			fmt.Println("Wrapping up")
-			q.Unlock()
-			return
+func addConsumer(ctx *TaskContext, f feed.Feed) {
+	defer ctx.wg.Done()
+	for !ctx.terminateFlag || len(ctx.queue) > 0 { // until records are finished writing
+		ctx.Lock()
+		ctx.readCond.Wait()
+		if len(ctx.queue) < ctx.blockSize {
+			executeLines(f, ctx.queue)
+			ctx.queue = nil
+		} else {
+			executeLines(f, ctx.queue[:ctx.blockSize])
+			ctx.queue = ctx.queue[ctx.blockSize:]
 		}
-		q.Unlock()
+		ctx.Unlock()
+		// ctx.writeCond.Signal() // continue writing
 	}
 }
 
-func main() {
-	var wg sync.WaitGroup
-
-	nThreads, _ := strconv.Atoi(os.Args[1])
-	blockSize, _ := strconv.Atoi(os.Args[2])
+func addProducer(ctx *TaskContext) {
+	defer ctx.wg.Done()
 	scanner := bufio.NewScanner(os.Stdin)
-
-	q := NewTaskQueue()
-	f := feed.NewFeed()
-
-	var lines []string
 	var res bool
-
-	counter := 0
-
-	for i := 0; i < nThreads; i++ {
-		wg.Add(1)
-		go addQueueConsumer(&wg, q, f, &lines)
-	}
-
 	for {
-		q.Lock()
-		lines = make([]string, blockSize)
-		for i := 0; i < blockSize; i++ {
+		ctx.Lock()
+		for i := 0; i < ctx.blockSize; i++ {
 			res = scanner.Scan()
 			if !res {
 				break
 			}
-			lines[i] = scanner.Text()
-			counter++
+			ctx.queue = append(ctx.queue, scanner.Text())
 		}
-		q.Unlock()
-		q.cond.Signal()
-		if !res {
-			q.Lock()
-			q.terminateFlag = true
-			q.Unlock()
-			q.cond.Broadcast()
+		ctx.Unlock()
+		ctx.readCond.Signal()
+		if !res { // Wrap up the remaining threads
+			ctx.Lock()
+			ctx.terminateFlag = true
+			ctx.Unlock()
+			for len(ctx.queue) > 0 {
+				ctx.readCond.Signal()
+			}
+			ctx.readCond.Broadcast()
+			ctx.readCond.Broadcast()
 			break
 		}
 	}
+}
 
-	wg.Wait()
+func main() {
+	nThreads, _ := strconv.Atoi(os.Args[1])
+	blockSize, _ := strconv.Atoi(os.Args[2])
 
-	if err := scanner.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
+	ctx := NewTaskContext(blockSize)
+	f := feed.NewFeed()
+
+	for i := 0; i < nThreads; i++ {
+		ctx.wg.Add(1)
+		go addConsumer(ctx, f)
 	}
+
+	// ctx.wg.Add(1)
+	addProducer(ctx)
+	ctx.wg.Wait()
 }
 
 func parseLine(line string) (string, int64, string, int64, bool) {
