@@ -5,7 +5,6 @@ import (
 	"feed"
 	"fmt"
 	"os"
-	"runtime"
 	"strconv"
 	"strings"
 	"sync"
@@ -21,7 +20,8 @@ const (
 // TaskQueue is a queue to hold a condition for reading.
 type TaskQueue struct {
 	sync.Mutex
-	cond *sync.Cond
+	cond          *sync.Cond
+	terminateFlag bool
 }
 
 // NewTaskQueue instantiates a condition for the queue.
@@ -29,6 +29,71 @@ func NewTaskQueue() *TaskQueue {
 	q := TaskQueue{}
 	q.cond = sync.NewCond(&q)
 	return &q
+}
+
+func addQueueConsumer(wg *sync.WaitGroup, q *TaskQueue, f feed.Feed, lines *[]string) {
+	defer wg.Done()
+	for { // Continuously wait for work
+		q.Lock()
+		q.cond.Wait()
+		executeLines(f, *lines)
+		if q.terminateFlag {
+			fmt.Println("Wrapping up")
+			q.Unlock()
+			return
+		}
+		q.Unlock()
+	}
+}
+
+func main() {
+	var wg sync.WaitGroup
+
+	nThreads, _ := strconv.Atoi(os.Args[1])
+	blockSize, _ := strconv.Atoi(os.Args[2])
+	scanner := bufio.NewScanner(os.Stdin)
+
+	q := NewTaskQueue()
+	f := feed.NewFeed()
+
+	var lines []string
+	var res bool
+
+	counter := 0
+
+	for i := 0; i < nThreads; i++ {
+		wg.Add(1)
+		go addQueueConsumer(&wg, q, f, &lines)
+	}
+
+	for {
+		q.Lock()
+		lines = make([]string, blockSize)
+		for i := 0; i < blockSize; i++ {
+			res = scanner.Scan()
+			if !res {
+				break
+			}
+			lines[i] = scanner.Text()
+			counter++
+		}
+		q.Unlock()
+		q.cond.Signal()
+		if !res {
+			q.Lock()
+			q.terminateFlag = true
+			q.Unlock()
+			q.cond.Broadcast()
+			break
+		}
+	}
+
+	wg.Wait()
+
+	if err := scanner.Err(); err != nil {
+		fmt.Fprintln(os.Stderr, "error:", err)
+		os.Exit(1)
+	}
 }
 
 func parseLine(line string) (string, int64, string, int64, bool) {
@@ -54,8 +119,10 @@ func parseLine(line string) (string, int64, string, int64, bool) {
 	return commandName, reqID, body, timestamp, false
 }
 
-func executeLines(wg *sync.WaitGroup, f feed.Feed, lines []string) {
-	defer wg.Done()
+func executeLines(f feed.Feed, lines []string) bool {
+	if len(lines) == 0 {
+		return false
+	}
 	for _, line := range lines {
 		commandName, reqID, body, timestamp, err := parseLine(line)
 
@@ -89,59 +156,5 @@ func executeLines(wg *sync.WaitGroup, f feed.Feed, lines []string) {
 			fmt.Println("{{", reqID, "}, {", f.String(), "}}")
 		}
 	}
-}
-
-func main() {
-	var wg sync.WaitGroup
-
-	nThreads, _ := strconv.Atoi(os.Args[1])
-	blockSize, _ := strconv.Atoi(os.Args[2])
-	runtime.GOMAXPROCS(nThreads)
-	scanner := bufio.NewScanner(os.Stdin)
-
-	q := NewTaskQueue()
-	f := feed.NewFeed()
-
-	var lines []string
-	var res bool
-
-	counter := 0
-	for {
-		for i := 0; i < nThreads; i++ {
-			wg.Add(1)
-			go func(q *TaskQueue, f feed.Feed, lines *[]string) {
-				q.Lock()
-				q.cond.Wait()
-				q.Unlock()
-				executeLines(&wg, f, *lines)
-			}(q, f, &lines)
-		}
-
-		q.Lock()
-		lines = make([]string, blockSize)
-		for i := 0; i < blockSize; i++ {
-			res = scanner.Scan()
-			if !res {
-				break
-			}
-			lines[i] = scanner.Text()
-			// fmt.Println(counter)
-			counter++
-		}
-		if !res {
-			q.Unlock()
-			q.cond.Broadcast()
-			break
-		} else {
-			q.Unlock()
-			q.cond.Signal()
-		}
-	}
-
-	wg.Wait()
-
-	if err := scanner.Err(); err != nil {
-		fmt.Fprintln(os.Stderr, "error:", err)
-		os.Exit(1)
-	}
+	return true
 }
