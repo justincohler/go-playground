@@ -58,6 +58,7 @@ func (f *feed) Add(body string, timestamp int64) {
 		return
 	} else if f.start.timestamp > timestamp {
 		f.start = newPost(body, timestamp, f.start)
+		return
 	}
 
 	parent := f.start
@@ -87,12 +88,11 @@ func (f *feed) Remove(timestamp int64) bool {
 	}
 
 	for parent.next != nil {
-		child := parent.next
-		if child.timestamp == timestamp {
-			parent.next = child.next
+		if parent.next.timestamp == timestamp {
+			parent.next = parent.next.next
 			return true
 		}
-		parent = child
+		parent = parent.next
 	}
 	return false
 }

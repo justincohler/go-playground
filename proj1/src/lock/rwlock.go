@@ -18,7 +18,7 @@ func (rw *RWLock) Lock() {
 		if rw.readers > 0 {
 			rw.mux.Unlock() // others still reading, try again
 		} else {
-			return
+			return // no more readers, keep lock alive until Unlock
 		}
 	}
 }

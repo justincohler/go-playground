@@ -88,16 +88,12 @@ func main() {
 
 	nThreads, _ := strconv.Atoi(os.Args[1])
 	blockSize, _ := strconv.Atoi(os.Args[2])
-
 	runtime.GOMAXPROCS(nThreads)
-
 	scanner := bufio.NewScanner(os.Stdin)
 
 	var lines []string
-
 	var res bool
-	var f feeder.Feed
-	f = feeder.NewFeed()
+	f := feeder.NewFeed()
 	for {
 		lines = make([]string, blockSize)
 		for i := 0; i < blockSize; i++ {
