@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"mpcs52060/justincohler/hw3/src/ppsync"
+    "mpcs52060/justincohler/hw3/src/ppsync"
 	"runtime"
 	"sync"
 )
