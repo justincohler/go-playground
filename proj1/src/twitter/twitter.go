@@ -79,9 +79,6 @@ func addProducer(ctx *TaskContext) {
 			ctx.Lock()
 			ctx.terminateFlag = true
 			ctx.Unlock()
-			for len(ctx.queue) > 0 {
-				ctx.readCond.Signal()
-			}
 			ctx.readCond.Broadcast()
 			break
 		}
