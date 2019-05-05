@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -38,7 +39,7 @@ func NewTaskContext(blockSize int) *TaskContext {
 
 func addConsumer(ctx *TaskContext, f feed.Feed) {
 	defer ctx.wg.Done()
-	for !ctx.terminateFlag || len(ctx.queue) > 0 { // until records are finished writing
+	for { // until records are finished writing
 		ctx.Lock()
 		ctx.readCond.Wait()
 		if len(ctx.queue) < ctx.blockSize {
@@ -49,16 +50,22 @@ func addConsumer(ctx *TaskContext, f feed.Feed) {
 			ctx.queue = ctx.queue[ctx.blockSize:]
 		}
 		ctx.Unlock()
-		// ctx.writeCond.Signal() // continue writing
+		if !ctx.terminateFlag {
+			ctx.writeCond.Signal()
+		} else {
+			break
+		}
 	}
 }
 
 func addProducer(ctx *TaskContext) {
-	defer ctx.wg.Done()
+	// defer ctx.wg.Done()
 	scanner := bufio.NewScanner(os.Stdin)
 	var res bool
 	for {
+		time.Sleep(10 * time.Millisecond)
 		ctx.Lock()
+		// ctx.writeCond.Wait()
 		for i := 0; i < ctx.blockSize; i++ {
 			res = scanner.Scan()
 			if !res {
@@ -75,7 +82,6 @@ func addProducer(ctx *TaskContext) {
 			for len(ctx.queue) > 0 {
 				ctx.readCond.Signal()
 			}
-			ctx.readCond.Broadcast()
 			ctx.readCond.Broadcast()
 			break
 		}
@@ -95,6 +101,8 @@ func main() {
 	}
 
 	// ctx.wg.Add(1)
+	// go addProducer(ctx)
+	// ctx.writeCond.Signal()
 	addProducer(ctx)
 	ctx.wg.Wait()
 }
