@@ -63,7 +63,7 @@ func addProducer(ctx *TaskContext) {
 	scanner := bufio.NewScanner(os.Stdin)
 	var res bool
 	for {
-		time.Sleep(10 * time.Millisecond)
+		time.Sleep(time.Millisecond)
 		ctx.Lock()
 		// ctx.writeCond.Wait()
 		for i := 0; i < ctx.blockSize; i++ {
