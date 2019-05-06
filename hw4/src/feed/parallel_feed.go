@@ -6,14 +6,14 @@ import (
 
 // parallelFeed is the internal representation of a user's twitter feed (hidden from outside packages)
 type parallelFeed struct {
-	start *post // a pointer to the beginning post
 	lock.RWLock
-	sf sequentialFeed
+	sf *serialFeed
 }
 
 // NewParallelFeed creates a empy user feed
 func NewParallelFeed() Feed {
-	return &parallelFeed{start: nil}
+	sf := &serialFeed{start: nil}
+	return &parallelFeed{sf: sf}
 }
 
 // Add inserts a new post to the feed. The feed is always ordered by the timestamp where
@@ -24,7 +24,7 @@ func (f *parallelFeed) Add(body string, timestamp int64) {
 	f.Lock()
 	defer f.Unlock()
 
-	sf.Add(body, timestamp)
+	f.sf.Add(body, timestamp)
 }
 
 // Remove deletes the post with the given timestamp. If the timestamp
@@ -34,7 +34,7 @@ func (f *parallelFeed) Remove(timestamp int64) bool {
 	f.Lock()
 	defer f.Unlock()
 
-	return sf.Remove(timestamp)
+	return f.sf.Remove(timestamp)
 }
 
 // Contains determines whether a post with the given timestamp is
@@ -44,7 +44,7 @@ func (f *parallelFeed) Contains(timestamp int64) bool {
 	f.RLock()
 	defer f.RUnlock()
 
-	return sf.Contains(timestamp)
+	return f.sf.Contains(timestamp)
 }
 
 // String converts a feed into a string representation so you can
@@ -53,31 +53,10 @@ func (f *parallelFeed) String() string {
 	f.RLock()
 	defer f.RUnlock()
 
-	return sf.String()
+	return f.sf.String()
 }
 
 // DO NOT MODIFY THIS FUNCTION OR REMOVE IT! This is needed for the testing module.
 func (f *parallelFeed) CheckOrder(order []int64) (string, bool) {
-	var comma = ","
-	var result = "["
-	currNode := f.start
-	validOrder := true
-	i := 0
-	for currNode != nil {
-		if currNode.next == nil {
-			comma = ""
-		}
-		if currNode.timestamp != order[i] {
-			validOrder = false
-		}
-
-		result += (strconv.FormatInt(currNode.timestamp, 10) + comma)
-		currNode = currNode.next
-		i++
-	}
-	result = "]"
-	if i != len(order) {
-		validOrder = false
-	}
-	return result, validOrder
+	return f.sf.CheckOrder(order)
 }
