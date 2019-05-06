@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"feed"
+	"flag"
 	"fmt"
 	"os"
 	"strconv"
@@ -84,21 +85,34 @@ func addProducer(ctx *TaskContext) {
 	}
 }
 
-func main() {
-	nThreads, _ := strconv.Atoi(os.Args[1])
-	blockSize, _ := strconv.Atoi(os.Args[2])
-
-	ctx := NewTaskContext(blockSize)
-	f := feed.NewParallelFeed()
-
-	for i := 0; i < nThreads; i++ {
-		ctx.wg.Add(1)
-		go addConsumer(ctx, f)
+func processSerially(f feed.Feed) {
+	scanner := bufio.NewScanner(os.Stdin)
+	for scanner.Scan() {
+		executeLine(f, scanner.Text())
 	}
+}
 
-	ctx.wg.Add(1)
-	go addProducer(ctx)
-	ctx.wg.Wait()
+func main() {
+	serial := flag.Bool("s", false, "Process records serially")
+	flag.Parse()
+
+	if *serial {
+		serialFeed := feed.NewSerialFeed()
+		processSerially(serialFeed)
+	} else {
+		nThreads, _ := strconv.Atoi(os.Args[1])
+		blockSize, _ := strconv.Atoi(os.Args[2])
+		ctx := NewTaskContext(blockSize)
+		parallelFeed := feed.NewParallelFeed()
+		for i := 0; i < nThreads; i++ {
+			ctx.wg.Add(1)
+			go addConsumer(ctx, parallelFeed)
+		}
+
+		ctx.wg.Add(1)
+		go addProducer(ctx)
+		ctx.wg.Wait()
+	}
 }
 
 func parseLine(line string) (string, int64, string, int64, bool) {
@@ -129,37 +143,37 @@ func executeLines(f feed.Feed, lines []string) bool {
 		return false
 	}
 	for _, line := range lines {
-		commandName, reqID, body, timestamp, err := parseLine(line)
-
-		if err {
-			break
-		}
-
-		var status string
-
-		switch commandName {
-		case cADD:
-			f.Add(body, timestamp)
-			fmt.Println("{{", reqID, "}, {SUCCESS}}")
-		case cREMOVE:
-			if f.Remove(timestamp) {
-				status = "SUCCESS"
-			} else {
-				status = "FAILED"
-			}
-			fmt.Println("{{", reqID, "}, {", status, "}}")
-
-		case cCONTAINS:
-			if f.Contains(timestamp) {
-				status = "YES"
-			} else {
-				status = "NO"
-			}
-			fmt.Println("{{", reqID, "}, {", status, "}}")
-
-		case cSTRING:
-			fmt.Println("{{", reqID, "}, {", f.String(), "}}")
-		}
+		executeLine(f, line)
 	}
 	return true
+}
+
+func executeLine(f feed.Feed, line string) {
+	commandName, reqID, body, timestamp, _ := parseLine(line)
+
+	var status string
+
+	switch commandName {
+	case cADD:
+		f.Add(body, timestamp)
+		fmt.Println("{{", reqID, "}, {SUCCESS}}")
+	case cREMOVE:
+		if f.Remove(timestamp) {
+			status = "SUCCESS"
+		} else {
+			status = "FAILED"
+		}
+		fmt.Println("{{", reqID, "}, {", status, "}}")
+
+	case cCONTAINS:
+		if f.Contains(timestamp) {
+			status = "YES"
+		} else {
+			status = "NO"
+		}
+		fmt.Println("{{", reqID, "}, {", status, "}}")
+
+	case cSTRING:
+		fmt.Println("{{", reqID, "}, {", f.String(), "}}")
+	}
 }
