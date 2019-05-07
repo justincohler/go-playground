@@ -41,19 +41,15 @@ func addConsumer(ctx *TaskContext, f feed.Feed) {
 	defer ctx.wg.Done()
 	for { // until records are finished writing
 		ctx.Lock()
-		ctx.readCond.Wait()
-		if len(ctx.queue) < ctx.blockSize {
-			executeLines(f, ctx.queue)
-			ctx.queue = nil
-		} else {
-			executeLines(f, ctx.queue[:ctx.blockSize])
-			ctx.queue = ctx.queue[ctx.blockSize:]
-		}
-		ctx.Unlock()
 		ctx.writeCond.Signal()
+		ctx.readCond.Wait()
+		executeLines(f, ctx.queue)
+		ctx.queue = nil
 		if ctx.terminateFlag {
+			ctx.Unlock()
 			break
 		}
+		ctx.Unlock()
 	}
 }
 
@@ -70,9 +66,7 @@ func addProducer(ctx *TaskContext) {
 			}
 			ctx.queue = append(ctx.queue, scanner.Text())
 		}
-		ctx.Unlock()
 		ctx.readCond.Signal()
-		ctx.Lock()
 
 		if !res { // Wrap up the remaining threads
 			ctx.terminateFlag = true
@@ -108,7 +102,6 @@ func main() {
 			ctx.wg.Add(1)
 			go addConsumer(ctx, parallelFeed)
 		}
-
 		ctx.wg.Add(1)
 		go addProducer(ctx)
 		ctx.wg.Wait()
