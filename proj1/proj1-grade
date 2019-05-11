@@ -1,0 +1,19 @@
+/* proj1 guideline */
+/* MPCS52060, Spring 2019 */
+
+/* === Evaluation === */
+/* Completeness 	      38/56  */
+/* -8 -> Your feed and RW Mutex did not pass our automated tests.*/
+/* -5 -> After converting your code to include done command and running tests, counts are off.*/
+/* -5 -> Deadlocks happen with high probability.*/
+/* TIP: Task Queue should actually have the task to be executed in it and not just condition.*/
+/* Correctness 		      20/24  */
+/* -1 -> You did not limit max readers */
+/* -3 -> Your code does not wait for the Done Command */
+/* Design             	      10/10  */
+/* Style       	      	      10/10  */
+
+/* _TOTAL-SCORE_    78/100 */
+
+/* Note: You were graded on your commit hash 4157412e039e44339cff55686179b4acbdcdfbfc */
+/* graded by Kiran */
