@@ -4,8 +4,6 @@ package stack
 type IntStack interface {
 	Push(value int)
 	Pop() int
-	Await()
-	Add(routines int)
 }
 
 // IntNode provides a linked-list node style for int values.
