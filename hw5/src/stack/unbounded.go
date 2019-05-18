@@ -27,13 +27,18 @@ func (q *UnboundedQueue) Push(value int) {
 // Pop returns (and removes) a value from the head of the queue.
 func (q *UnboundedQueue) Pop() int {
 	var res int
-	q.deqLock.Lock()
+	for {
+		q.deqLock.Lock()
+		if q.head.next == nil {
+			q.deqLock.Unlock()
+		} else {
+			break
+		}
+	}
 	defer q.deqLock.Unlock()
 
-	if q.head.next != nil {
-		res = q.head.next.value
-		q.head = q.head.next
-	}
+	res = q.head.next.value
+	q.head = q.head.next
 	fmt.Println("Popped", res)
 	return res // will return 0 if poping empty queue
 }

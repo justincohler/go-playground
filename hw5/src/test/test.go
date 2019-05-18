@@ -68,15 +68,17 @@ func main() {
 	fmt.Println("Unbounded lock-free queue...")
 	unbounded = stack.NewUnboundedLockFreeQueue()
 
-	wg.Add(8)
+	wg.Add(4)
 	go push(&wg, unbounded, 1)
 	go push(&wg, unbounded, 2)
 	go push(&wg, unbounded, 3)
 	go push(&wg, unbounded, 4)
-	go pop(&wg, unbounded)
-	go pop(&wg, unbounded)
-	go pop(&wg, unbounded)
-	go pop(&wg, unbounded)
+	wg.Wait()
 
+	wg.Add(4)
+	go pop(&wg, unbounded)
+	go pop(&wg, unbounded)
+	go pop(&wg, unbounded)
+	go pop(&wg, unbounded)
 	wg.Wait()
 }
