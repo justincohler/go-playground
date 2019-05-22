@@ -18,7 +18,6 @@ type BoundedQueue struct {
 func (q *BoundedQueue) Push(value int) {
 	q.Lock()
 	defer q.Unlock()
-
 	for len(q.queue) == q.capacity {
 		q.hasSpace.Wait()
 	}
@@ -33,7 +32,6 @@ func (q *BoundedQueue) Push(value int) {
 func (q *BoundedQueue) Pop() int {
 	q.Lock()
 	defer q.Unlock()
-
 	var res int
 	for len(q.queue) == 0 {
 		q.hasItems.Wait()
