@@ -14,7 +14,7 @@ import (
 type PNGImage struct {
 	image.Image
 	kernelDim int
-	nThreads  int
+	Threads   int
 	wg        sync.WaitGroup
 }
 
@@ -34,7 +34,7 @@ func Load(filePath string) (*PNGImage, error) {
 		return nil, err
 	}
 
-	return &PNGImage{Image: inImg, kernelDim: 3, nThreads: 1}, nil
+	return &PNGImage{Image: inImg, kernelDim: 3}, nil
 }
 
 // Save saves the image to the given file
@@ -59,6 +59,22 @@ func clamp(comp float64) uint16 {
 	return uint16(math.Min(65535, math.Max(0, comp)))
 }
 
+// ApplyFilter applies one of four filters to an image
+func (img *PNGImage) ApplyFilter(filter string) *PNGImage {
+	switch filter {
+	case "G":
+		return img.Grayscale()
+	case "B":
+		return img.Blur()
+	case "S":
+		return img.Sharpen()
+	case "E":
+		return img.Edge()
+	default:
+		panic("Unknown filter type")
+	}
+}
+
 // Grayscale applies a grayscale filtering effect to the image
 func (img *PNGImage) Grayscale() *PNGImage {
 
@@ -73,7 +89,7 @@ func (img *PNGImage) Grayscale() *PNGImage {
 			out.Set(x, y, color.RGBA64{greyC, greyC, greyC, uint16(a)})
 		}
 	}
-	return &PNGImage{Image: out, kernelDim: img.kernelDim, nThreads: img.nThreads}
+	return &PNGImage{Image: out, kernelDim: img.kernelDim, Threads: img.Threads}
 }
 
 // Blur applies a blur filtering effect to the image
@@ -111,8 +127,8 @@ func (img *PNGImage) BlockConvolution(kernel [][]float64) *PNGImage {
 	out := image.NewRGBA64(img.Bounds())
 	bounds := img.Bounds()
 
-	blockSize := (bounds.Max.Y - bounds.Min.Y) / img.nThreads
-	for i := 0; i < img.nThreads; i++ {
+	blockSize := (bounds.Max.Y - bounds.Min.Y) / img.Threads
+	for i := 0; i < img.Threads; i++ {
 		maxY := math.Max(float64(bounds.Max.Y), float64((i+1)*blockSize))
 		blockBounds := image.Rect(bounds.Min.X, i*blockSize, bounds.Max.X, int(maxY))
 		img.wg.Add(1)
@@ -120,7 +136,7 @@ func (img *PNGImage) BlockConvolution(kernel [][]float64) *PNGImage {
 
 	}
 	img.wg.Wait()
-	return &PNGImage{Image: out}
+	return &PNGImage{Image: out, kernelDim: img.kernelDim, Threads: img.Threads}
 }
 
 // Convolution performs image convolution given a kernel of specified dimension.

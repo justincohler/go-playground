@@ -17,3 +17,4 @@ out.txt
 proj1/resources/*
 **.png
 pkg/
+.DS_STORE
