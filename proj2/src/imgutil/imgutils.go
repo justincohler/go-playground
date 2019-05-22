@@ -13,6 +13,7 @@ import (
 type PNGImage struct {
 	image.Image
 	kernelDim int
+	nThreads  int
 }
 
 // Load returns a PNGImage that was loaded based on the filePath parameter
@@ -31,7 +32,7 @@ func Load(filePath string) (*PNGImage, error) {
 		return nil, err
 	}
 
-	return &PNGImage{inImg, 3}, nil
+	return &PNGImage{inImg, 3, 1}, nil
 }
 
 // Save saves the image to the given file
@@ -70,7 +71,7 @@ func (img *PNGImage) Grayscale() *PNGImage {
 			outImg.Set(x, y, color.RGBA64{greyC, greyC, greyC, uint16(a)})
 		}
 	}
-	return &PNGImage{outImg, img.kernelDim}
+	return &PNGImage{outImg, img.kernelDim, img.nThreads}
 }
 
 // Blur applies a blur filtering effect to the image
@@ -80,7 +81,8 @@ func (img *PNGImage) Blur() *PNGImage {
 		{1. / 9, 1. / 9, 1. / 9},
 		{1. / 9, 1. / 9, 1. / 9}}
 
-	return img.Convolution(kernel)
+	out := image.NewRGBA64(img.Bounds())
+	return img.Convolution(out, img.Bounds(), kernel)
 }
 
 // Sharpen applies a sharpen effect to the image
@@ -90,7 +92,8 @@ func (img *PNGImage) Sharpen() *PNGImage {
 		{-1., 5., -1.},
 		{0., -1., 0.}}
 
-	return img.Convolution(kernel)
+	out := image.NewRGBA64(img.Bounds())
+	return img.Convolution(out, img.Bounds(), kernel)
 }
 
 // Edge applies an edge-detection effect to the image
@@ -100,13 +103,12 @@ func (img *PNGImage) Edge() *PNGImage {
 		{-1., 8., -1.},
 		{-1., -1., -1.}}
 
-	return img.Convolution(kernel)
+	out := image.NewRGBA64(img.Bounds())
+	return img.Convolution(out, img.Bounds(), kernel)
 }
 
 // Convolution performs image convolution given a kernel of specified dimension.
-func (img *PNGImage) Convolution(kernel [][]float64) *PNGImage {
-	bounds := img.Bounds()
-	outImg := image.NewRGBA64(bounds)
+func (img *PNGImage) Convolution(out *image.RGBA64, bounds image.Rectangle, kernel [][]float64) *PNGImage {
 
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
@@ -125,10 +127,10 @@ func (img *PNGImage) Convolution(kernel [][]float64) *PNGImage {
 					a += clamp(kernel[i][j] * float64(na))
 				}
 			}
-			outImg.Set(x, y, color.RGBA64{r, g, b, a})
+			out.Set(x, y, color.RGBA64{r, g, b, a})
 		}
 	}
-	return &PNGImage{outImg, img.kernelDim}
+	return &PNGImage{out, img.kernelDim, img.nThreads}
 }
 
 func (img *PNGImage) neighbors(x, y int) [][]color.Color {
