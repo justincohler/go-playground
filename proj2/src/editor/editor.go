@@ -14,11 +14,10 @@ func main() {
 	image, _ := imgutil.Load(filePath)
 
 	//Performs a grayscale filtering effect on the image
-	// image.Grayscale()
-	image.Blur()
+	gray := image.Grayscale()
+	blur := image.Blur()
 
 	//Saves the image to a new file
-	// image.Save(filePath + "_gray.png")
-	image.Save(filePath + "_blur.png")
-
+	blur.Save(filePath + "_blur.png")
+	gray.Save(filePath + "_gray.png")
 }

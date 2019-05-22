@@ -1,6 +1,7 @@
 package imgutil
 
 import (
+	// "fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -10,8 +11,7 @@ import (
 
 // The PNGImage represents a structure for working with PNG images.
 type PNGImage struct {
-	in        image.Image
-	out       *image.RGBA64
+	image.Image
 	kernelDim int
 }
 
@@ -31,11 +31,7 @@ func Load(filePath string) (*PNGImage, error) {
 		return nil, err
 	}
 
-	inBounds := inImg.Bounds()
-
-	outImg := image.NewRGBA64(inBounds)
-
-	return &PNGImage{inImg, outImg, 3}, nil
+	return &PNGImage{inImg, 3}, nil
 }
 
 // Save saves the image to the given file
@@ -47,7 +43,7 @@ func (img *PNGImage) Save(filePath string) error {
 	}
 	defer outWriter.Close()
 
-	err = png.Encode(outWriter, img.out)
+	err = png.Encode(outWriter, img)
 	if err != nil {
 		return err
 	}
@@ -61,31 +57,37 @@ func clamp(comp float64) uint16 {
 }
 
 // Grayscale applies a grayscale filtering effect to the image
-func (img *PNGImage) Grayscale() {
+func (img *PNGImage) Grayscale() *PNGImage {
 
-	bounds := img.out.Bounds()
+	bounds := img.Bounds()
+	outImg := image.NewRGBA64(bounds)
+
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			r, g, b, a := img.in.At(x, y).RGBA()
+			// fmt.Println(img.At(x, y).RGBA())
+			r, g, b, a := img.At(x, y).RGBA()
 			greyC := clamp(float64(r+g+b) / 3)
-			img.out.Set(x, y, color.RGBA64{greyC, greyC, greyC, uint16(a)})
+			outImg.Set(x, y, color.RGBA64{greyC, greyC, greyC, uint16(a)})
 		}
 	}
+	return &PNGImage{outImg, img.kernelDim}
 }
 
 // Blur applies a blur filtering effect to the image
-func (img *PNGImage) Blur() {
+func (img *PNGImage) Blur() *PNGImage {
 	kernel := [][]float64{
 		{1. / 9, 1. / 9, 1. / 9},
 		{1. / 9, 1. / 9, 1. / 9},
 		{1. / 9, 1. / 9, 1. / 9}}
 
-	img.Convolution(kernel)
+	return img.Convolution(kernel)
 }
 
 // Convolution performs image convolution given a kernel of specified dimension.
-func (img *PNGImage) Convolution(kernel [][]float64) {
-	bounds := img.out.Bounds()
+func (img *PNGImage) Convolution(kernel [][]float64) *PNGImage {
+	bounds := img.Bounds()
+	outImg := image.NewRGBA64(bounds)
+
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			neighbors := img.neighbors(x, y)
@@ -103,13 +105,14 @@ func (img *PNGImage) Convolution(kernel [][]float64) {
 					a += clamp(kernel[i][j] * float64(na))
 				}
 			}
-			img.out.Set(x, y, color.RGBA64{r, g, b, a})
+			outImg.Set(x, y, color.RGBA64{r, g, b, a})
 		}
 	}
+	return &PNGImage{outImg, img.kernelDim}
 }
 
 func (img *PNGImage) neighbors(x, y int) [][]color.Color {
-	bounds := img.out.Bounds()
+	bounds := img.Bounds()
 
 	neighbors := make([][]color.Color, img.kernelDim)
 	for i := range neighbors {
@@ -122,9 +125,10 @@ func (img *PNGImage) neighbors(x, y int) [][]color.Color {
 			if x+i < bounds.Min.X || x+i >= bounds.Max.X || y+j < bounds.Min.Y || y+j >= bounds.Max.Y {
 				continue
 			}
-			color := img.in.At(x+i, y+j)
+			color := img.At(x+i, y+j)
 			// fmt.Println("Color at", x+i, ",", y+j, "is", color)
 			neighbors[i+1][j+1] = color
+
 		}
 	}
 	return neighbors
