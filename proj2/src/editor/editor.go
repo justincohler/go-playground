@@ -16,8 +16,12 @@ func main() {
 	//Performs a grayscale filtering effect on the image
 	gray := image.Grayscale()
 	blur := image.Blur()
+	sharpen := image.Sharpen()
+	edge := image.Edge()
 
 	//Saves the image to a new file
-	blur.Save(filePath + "_blur.png")
 	gray.Save(filePath + "_gray.png")
+	blur.Save(filePath + "_blur.png")
+	sharpen.Save(filePath + "_sharpen.png")
+	edge.Save(filePath + "_edge.png")
 }

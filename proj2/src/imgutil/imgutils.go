@@ -83,6 +83,26 @@ func (img *PNGImage) Blur() *PNGImage {
 	return img.Convolution(kernel)
 }
 
+// Sharpen applies a sharpen effect to the image
+func (img *PNGImage) Sharpen() *PNGImage {
+	kernel := [][]float64{
+		{0., -1., 0.},
+		{-1., 5., -1.},
+		{0., -1., 0.}}
+
+	return img.Convolution(kernel)
+}
+
+// Edge applies an edge-detection effect to the image
+func (img *PNGImage) Edge() *PNGImage {
+	kernel := [][]float64{
+		{-1., -1., -1.},
+		{-1., 8., -1.},
+		{-1., -1., -1.}}
+
+	return img.Convolution(kernel)
+}
+
 // Convolution performs image convolution given a kernel of specified dimension.
 func (img *PNGImage) Convolution(kernel [][]float64) *PNGImage {
 	bounds := img.Bounds()

@@ -16,3 +16,4 @@ out.txt
 *.csv
 proj1/resources/*
 **.png
+pkg/
