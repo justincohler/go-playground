@@ -7,6 +7,7 @@ import (
 	"image/png"
 	"math"
 	"os"
+	"sync"
 )
 
 // The PNGImage represents a structure for working with PNG images.
@@ -14,6 +15,7 @@ type PNGImage struct {
 	image.Image
 	kernelDim int
 	nThreads  int
+	wg        sync.WaitGroup
 }
 
 // Load returns a PNGImage that was loaded based on the filePath parameter
@@ -32,7 +34,7 @@ func Load(filePath string) (*PNGImage, error) {
 		return nil, err
 	}
 
-	return &PNGImage{inImg, 3, 1}, nil
+	return &PNGImage{Image: inImg, kernelDim: 3, nThreads: 1}, nil
 }
 
 // Save saves the image to the given file
@@ -61,17 +63,17 @@ func clamp(comp float64) uint16 {
 func (img *PNGImage) Grayscale() *PNGImage {
 
 	bounds := img.Bounds()
-	outImg := image.NewRGBA64(bounds)
+	out := image.NewRGBA64(bounds)
 
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			// fmt.Println(img.At(x, y).RGBA())
 			r, g, b, a := img.At(x, y).RGBA()
 			greyC := clamp(float64(r+g+b) / 3)
-			outImg.Set(x, y, color.RGBA64{greyC, greyC, greyC, uint16(a)})
+			out.Set(x, y, color.RGBA64{greyC, greyC, greyC, uint16(a)})
 		}
 	}
-	return &PNGImage{outImg, img.kernelDim, img.nThreads}
+	return &PNGImage{Image: out, kernelDim: img.kernelDim, nThreads: img.nThreads}
 }
 
 // Blur applies a blur filtering effect to the image
@@ -81,8 +83,7 @@ func (img *PNGImage) Blur() *PNGImage {
 		{1. / 9, 1. / 9, 1. / 9},
 		{1. / 9, 1. / 9, 1. / 9}}
 
-	out := image.NewRGBA64(img.Bounds())
-	return img.Convolution(out, img.Bounds(), kernel)
+	return img.BlockConvolution(kernel)
 }
 
 // Sharpen applies a sharpen effect to the image
@@ -92,8 +93,7 @@ func (img *PNGImage) Sharpen() *PNGImage {
 		{-1., 5., -1.},
 		{0., -1., 0.}}
 
-	out := image.NewRGBA64(img.Bounds())
-	return img.Convolution(out, img.Bounds(), kernel)
+	return img.BlockConvolution(kernel)
 }
 
 // Edge applies an edge-detection effect to the image
@@ -103,13 +103,29 @@ func (img *PNGImage) Edge() *PNGImage {
 		{-1., 8., -1.},
 		{-1., -1., -1.}}
 
+	return img.BlockConvolution(kernel)
+}
+
+// BlockConvolution splits convolution into a number of blocks for parallel processing
+func (img *PNGImage) BlockConvolution(kernel [][]float64) *PNGImage {
 	out := image.NewRGBA64(img.Bounds())
-	return img.Convolution(out, img.Bounds(), kernel)
+	bounds := img.Bounds()
+
+	blockSize := (bounds.Max.Y - bounds.Min.Y) / img.nThreads
+	for i := 0; i < img.nThreads; i++ {
+		maxY := math.Max(float64(bounds.Max.Y), float64((i+1)*blockSize))
+		blockBounds := image.Rect(bounds.Min.X, i*blockSize, bounds.Max.X, int(maxY))
+		img.wg.Add(1)
+		go img.Convolution(out, blockBounds, kernel)
+
+	}
+	img.wg.Wait()
+	return &PNGImage{Image: out}
 }
 
 // Convolution performs image convolution given a kernel of specified dimension.
-func (img *PNGImage) Convolution(out *image.RGBA64, bounds image.Rectangle, kernel [][]float64) *PNGImage {
-
+func (img *PNGImage) Convolution(out *image.RGBA64, bounds image.Rectangle, kernel [][]float64) {
+	defer img.wg.Done()
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
 			neighbors := img.neighbors(x, y)
@@ -130,7 +146,6 @@ func (img *PNGImage) Convolution(out *image.RGBA64, bounds image.Rectangle, kern
 			out.Set(x, y, color.RGBA64{r, g, b, a})
 		}
 	}
-	return &PNGImage{out, img.kernelDim, img.nThreads}
 }
 
 func (img *PNGImage) neighbors(x, y int) [][]color.Color {
