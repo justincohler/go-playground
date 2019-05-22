@@ -16,21 +16,21 @@ func main() {
 	file, _ := os.Open(filePath)
 	defer file.Close()
 	scanner := bufio.NewScanner(file)
-	inQueue := queue.NewUnbounded()
-	// outQueue := queue.NewUnbounded()
+	qReadImg := queue.NewUnbounded()
+	qWriteImg := queue.NewUnbounded()
 
 	for scanner.Scan() {
-		inQueue.Push(scanner.Text())
+		qReadImg.Push(scanner.Text())
 	}
 
 	nThreads, _ := strconv.Atoi(sThreads)
 	for i := 0; i < nThreads; i++ {
 		wg.Add(1)
-		go func(q queue.StringStack, nThreads int) {
+		go func(qReadImg queue.Stack, qWriteImg queue.Stack, nThreads int) {
 			defer wg.Done()
-			for !q.Empty() {
-				line := q.Pop()
-				lineArgs := strings.Split(strings.Replace(line, " ", "", -1), ",")
+			for !qReadImg.Empty() {
+				line := qReadImg.Pop()
+				lineArgs := strings.Split(strings.Replace(line.(string), " ", "", -1), ",")
 
 				fromFileName := lineArgs[0]
 				toFileName := lineArgs[1]
@@ -43,9 +43,11 @@ func main() {
 				for _, filter := range filters {
 					curr = curr.ApplyFilter(filter)
 				}
+
 				curr.Save(toFileName)
 			}
-		}(inQueue, nThreads)
+		}(qReadImg, qWriteImg, nThreads)
 	}
+
 	wg.Wait()
 }
