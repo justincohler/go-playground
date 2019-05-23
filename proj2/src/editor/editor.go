@@ -2,7 +2,7 @@ package main
 
 import (
 	"bufio"
-	"fmt"
+	// "fmt"
 	"imgutil"
 	"os"
 	"queue"
@@ -37,6 +37,13 @@ func NewContext(nThreads int) *Context {
 	return &ctx
 }
 
+// QueueRequest is utility to send over queue s.t. our I/O is constrained to one thread.
+type QueueRequest struct {
+	Image   *imgutil.PNGImage
+	Filters []string
+	OutFile string
+}
+
 func spawnImageProcessor(ctx *Context) {
 	defer ctx.wg.Done()
 	for {
@@ -46,29 +53,20 @@ func spawnImageProcessor(ctx *Context) {
 			ctx.filterCond.L.Unlock()
 			break
 		}
-		line := ctx.qFilter.Pop()
+		value := ctx.qFilter.Pop()
+		request := value.(QueueRequest)
 		ctx.filterCond.L.Unlock()
 
-		lineArgs := strings.Split(strings.Replace(line.(string), " ", "", -1), ",")
-
-		fromFileName := lineArgs[0]
-		toFileName := lineArgs[1]
-		filters := lineArgs[2:]
-
-		img, _ := imgutil.Load(fromFileName)
-		img.Threads = ctx.nThreads
 		var curr *imgutil.PNGImage
-		curr = img
-		for _, filter := range filters {
+		curr = request.Image
+		for _, filter := range request.Filters {
 			curr = curr.ApplyFilter(filter)
 		}
 
-		element := make(map[string]*imgutil.PNGImage)
-		element[toFileName] = curr
-
+		request.Image = curr
 		// Tell the saver there's a file to save
 		ctx.saveCond.L.Lock()
-		ctx.qSave.Push(element)
+		ctx.qSave.Push(request)
 		ctx.saveCond.Signal()
 		ctx.saveCond.L.Unlock()
 
@@ -80,15 +78,14 @@ func spawnImageProcessor(ctx *Context) {
 func spawnImageWriter(ctx *Context, fileCount *int) {
 	savedCount := 0
 	for !ctx.readComplete || savedCount < *fileCount {
-		ctx.saveLock.Lock()
+		ctx.saveCond.L.Lock()
 		ctx.saveCond.Wait()
-		fmt.Println("Received SAVE signal.")
-		element := ctx.qSave.Pop()
-		ctx.saveLock.Unlock()
-		for fileName, image := range element.(map[string]*imgutil.PNGImage) {
-			image.Save(fileName)
-			break
-		}
+		// fmt.Println("Received SAVE signal.")
+		value := ctx.qSave.Pop()
+		ctx.saveCond.L.Unlock()
+		request := value.(QueueRequest)
+
+		request.Image.Save(request.OutFile)
 		savedCount++
 	}
 }
@@ -112,13 +109,24 @@ func main() {
 
 	for scanner.Scan() {
 		ctx.filterCond.L.Lock()
-		ctx.qFilter.Push(scanner.Text())
+		line := scanner.Text()
+		lineArgs := strings.Split(strings.Replace(line, " ", "", -1), ",")
+
+		inFile := lineArgs[0]
+		outFile := lineArgs[1]
+		filters := lineArgs[2:]
+
+		img, _ := imgutil.Load(inFile)
+		img.Threads = ctx.nThreads
+		request := QueueRequest{img, filters, outFile}
+
+		ctx.qFilter.Push(request)
 		ctx.filterCond.Signal()
 		ctx.filterCond.L.Unlock()
 
 		ctx.scanCond.L.Lock()
 		ctx.scanCond.Wait()
-		fmt.Println("Received CONTINUE-SCAN signal.")
+		// fmt.Println("Received CONTINUE-SCAN signal.")
 		ctx.scanCond.L.Unlock()
 		fileCount++
 	}
