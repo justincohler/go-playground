@@ -18,6 +18,13 @@ type PNGImage struct {
 	wg        sync.WaitGroup
 }
 
+// FilterRequest is utility to send over queue s.t. our I/O is constrained to one thread.
+type FilterRequest struct {
+	image.Image
+	filters []string
+	outFile string
+}
+
 // Load returns a PNGImage that was loaded based on the filePath parameter
 func Load(filePath string) (*PNGImage, error) {
 
