@@ -59,6 +59,16 @@ func clamp(comp float64) uint16 {
 	return uint16(math.Min(65535, math.Max(0, comp)))
 }
 
+// ApplyFilters applies a sequential list of filters
+func (img *PNGImage) ApplyFilters(filters []string) *PNGImage {
+	var filteredImg *PNGImage
+	filteredImg = img
+	for _, filter := range filters {
+		filteredImg = filteredImg.ApplyFilter(filter)
+	}
+	return filteredImg
+}
+
 // ApplyFilter applies one of four filters to an image
 func (img *PNGImage) ApplyFilter(filter string) *PNGImage {
 	switch filter {

@@ -2,7 +2,7 @@ package main
 
 import (
 	"bufio"
-	// "fmt"
+	"fmt"
 	"imgutil"
 	"os"
 	"queue"
@@ -57,13 +57,8 @@ func spawnImageProcessor(ctx *Context) {
 		request := value.(QueueRequest)
 		ctx.filterCond.L.Unlock()
 
-		var curr *imgutil.PNGImage
-		curr = request.Image
-		for _, filter := range request.Filters {
-			curr = curr.ApplyFilter(filter)
-		}
+		request.Image = request.Image.ApplyFilters(request.Filters)
 
-		request.Image = curr
 		// Tell the saver there's a file to save
 		ctx.saveCond.L.Lock()
 		ctx.qSave.Push(request)
@@ -80,7 +75,7 @@ func spawnImageWriter(ctx *Context, fileCount *int) {
 	for !ctx.readComplete || savedCount < *fileCount {
 		ctx.saveCond.L.Lock()
 		ctx.saveCond.Wait()
-		// fmt.Println("Received SAVE signal.")
+		fmt.Println("Received SAVE signal.")
 		value := ctx.qSave.Pop()
 		ctx.saveCond.L.Unlock()
 		request := value.(QueueRequest)
@@ -90,7 +85,28 @@ func spawnImageWriter(ctx *Context, fileCount *int) {
 	}
 }
 
-func main() {
+func parseLine(line string) (string, string, []string) {
+	lineArgs := strings.Split(strings.Replace(line, " ", "", -1), ",")
+	return lineArgs[0], lineArgs[1], lineArgs[2:]
+}
+
+func processSequential() {
+	filePath := os.Args[1]
+	file, _ := os.Open(filePath)
+	defer file.Close()
+	scanner := bufio.NewScanner(file)
+
+	for scanner.Scan() {
+		inFile, outFile, filters := parseLine(scanner.Text())
+		img, _ := imgutil.Load(inFile)
+		img.Threads = 1
+
+		filteredImg := img.ApplyFilters(filters)
+		filteredImg.Save(outFile)
+	}
+}
+
+func processParallel() {
 	sThreads, filePath := os.Args[1], os.Args[2]
 	nThreads, _ := strconv.Atoi(sThreads)
 	ctx := NewContext(nThreads)
@@ -108,25 +124,19 @@ func main() {
 	scanner := bufio.NewScanner(file)
 
 	for scanner.Scan() {
-		ctx.filterCond.L.Lock()
-		line := scanner.Text()
-		lineArgs := strings.Split(strings.Replace(line, " ", "", -1), ",")
-
-		inFile := lineArgs[0]
-		outFile := lineArgs[1]
-		filters := lineArgs[2:]
+		inFile, outFile, filters := parseLine(scanner.Text())
 
 		img, _ := imgutil.Load(inFile)
 		img.Threads = ctx.nThreads
 		request := QueueRequest{img, filters, outFile}
 
+		ctx.filterCond.L.Lock()
 		ctx.qFilter.Push(request)
 		ctx.filterCond.Signal()
 		ctx.filterCond.L.Unlock()
 
 		ctx.scanCond.L.Lock()
 		ctx.scanCond.Wait()
-		// fmt.Println("Received CONTINUE-SCAN signal.")
 		ctx.scanCond.L.Unlock()
 		fileCount++
 	}
@@ -136,4 +146,12 @@ func main() {
 	ctx.filterCond.L.Unlock()
 
 	ctx.wg.Wait()
+}
+
+func main() {
+	if len(os.Args) < 3 {
+		processSequential()
+	} else {
+		processParallel()
+	}
 }
