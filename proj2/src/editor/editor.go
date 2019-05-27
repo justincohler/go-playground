@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"imgutil"
+	"math"
 	"os"
 	"queue"
 	"strconv"
@@ -129,7 +130,7 @@ func processSerial() {
 func processParallel() {
 	sThreads, filePath := os.Args[1], os.Args[2]
 	nThreads, _ := strconv.Atoi(sThreads)
-	// nThreads = int(math.Sqrt(float64(nThreads))) // to allow for both data and functional parallelism
+	nThreads = int(math.Sqrt(float64(nThreads))) // to allow for both data and functional parallelism
 	ctx := NewContext(nThreads)
 
 	for i := 0; i < nThreads; i++ {
@@ -159,7 +160,7 @@ func processParallel() {
 		ctx.filterInCond.Signal()
 		fmt.Println("Thread 0* sent FILTER signal")
 
-		if activeFilters == 4 {
+		if activeFilters == int32(ctx.nThreads) {
 			ctx.scanCond.L.Lock()
 			ctx.scanCond.Wait()
 			ctx.scanCond.L.Unlock()
