@@ -9,27 +9,30 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 // Context allows for further parallelization
 type Context struct {
-	wg                sync.WaitGroup
-	scanAndFilterLock sync.Mutex
-	filterCond        *sync.Cond
-	scanCond          *sync.Cond
-	saveLock          sync.Mutex
-	saveCond          *sync.Cond
-	qFilter           queue.Stack
-	qSave             queue.Stack
-	nThreads          int
-	readComplete      bool
+	wg             sync.WaitGroup
+	scanFilterLock sync.Mutex
+	scanCond       *sync.Cond
+	filterCond     *sync.Cond
+	saveLock       sync.Mutex
+	saveCond       *sync.Cond
+	qFilter        queue.Stack
+	qSave          queue.Stack
+	nThreads       int
+	readComplete   bool
+	fileCount      int32
+	activeFilters  int32
 }
 
 // NewContext returns a new app context
 func NewContext(nThreads int) *Context {
 	ctx := Context{}
-	ctx.filterCond = sync.NewCond(&ctx.scanAndFilterLock)
-	ctx.scanCond = sync.NewCond(&ctx.scanAndFilterLock)
+	ctx.scanCond = sync.NewCond(&ctx.scanFilterLock)
+	ctx.filterCond = sync.NewCond(&ctx.scanFilterLock)
 	ctx.saveCond = sync.NewCond(&ctx.saveLock)
 	ctx.qFilter = queue.NewUnbounded()
 	ctx.qSave = queue.NewUnbounded()
@@ -55,38 +58,45 @@ func spawnImageProcessor(ctx *Context, goID int) {
 			break
 		}
 		value := ctx.qFilter.Pop()
+		ctx.filterCond.L.Unlock()
+
 		fmt.Println("Thread", goID, "received FILTER message")
 		request := value.(QueueRequest)
 		request.goID = goID
-		ctx.filterCond.L.Unlock()
-
 		request.Image = request.Image.ApplyFilters(request.Filters)
 
 		// Tell the saver there's a file to save
 		ctx.saveCond.L.Lock()
 		ctx.qSave.Push(request)
-		fmt.Println("Thread", goID, "sent SAVE message")
+		// fmt.Println("Thread", goID, "sent SAVE message")
 		ctx.saveCond.Signal()
 		ctx.saveCond.L.Unlock()
 
 		// Tell the csv reader to send more work
+		ctx.scanCond.L.Lock()
+		atomic.AddInt32(&ctx.activeFilters, -1)
+		fmt.Println("Thread", goID, "ready for work!")
 		ctx.scanCond.Signal()
+		ctx.scanCond.L.Unlock()
 	}
+	fmt.Println("Thread", goID, "done filtering")
 }
 
-func spawnImageWriter(ctx *Context, fileCount *int) {
-	savedCount := 0
-	for !ctx.readComplete || savedCount < *fileCount {
+func spawnImageWriter(ctx *Context) {
+	defer ctx.wg.Done()
+	for !ctx.readComplete || atomic.LoadInt32(&ctx.fileCount) > 0 {
+
 		ctx.saveCond.L.Lock()
 		ctx.saveCond.Wait()
 		value := ctx.qSave.Pop()
 		ctx.saveCond.L.Unlock()
 		request := value.(QueueRequest)
-		fmt.Println("Thread", request.goID, "SAVE signal received")
+		// fmt.Println("Thread", request.goID, "SAVE signal received")
 
 		request.Image.Save(request.OutFile)
-		savedCount++
+		atomic.AddInt32(&ctx.fileCount, -1)
 	}
+	fmt.Println("Finished Writing All Images.")
 }
 
 func parseLine(line string) (string, string, []string) {
@@ -115,16 +125,17 @@ func processSerial() {
 func processParallel() {
 	sThreads, filePath := os.Args[1], os.Args[2]
 	nThreads, _ := strconv.Atoi(sThreads)
+	// nThreads = int(math.Sqrt(float64(nThreads))) // to allow for both data and functional parallelism
 	ctx := NewContext(nThreads)
-	fileCount := 0
 
 	for i := 0; i < nThreads; i++ {
-		ctx.wg.Add(1)
 		goID := i + 1
+		ctx.wg.Add(1)
 		go spawnImageProcessor(ctx, goID)
 	}
 
-	go spawnImageWriter(ctx, &fileCount)
+	ctx.wg.Add(1)
+	go spawnImageWriter(ctx)
 
 	file, _ := os.Open(filePath)
 	defer file.Close()
@@ -137,16 +148,18 @@ func processParallel() {
 		img.Threads = ctx.nThreads
 		request := QueueRequest{Image: img, Filters: filters, OutFile: outFile}
 
-		ctx.filterCond.L.Lock()
-		fmt.Println("Thread 0* sent FILTER signal")
+		activeFilters := atomic.AddInt32(&ctx.activeFilters, 1)
+		atomic.AddInt32(&ctx.fileCount, 1)
+
 		ctx.qFilter.Push(request)
 		ctx.filterCond.Signal()
-		ctx.filterCond.L.Unlock()
+		fmt.Println("Thread 0* sent FILTER signal")
 
-		ctx.scanCond.L.Lock()
-		ctx.scanCond.Wait()
-		ctx.scanCond.L.Unlock()
-		fileCount++
+		if activeFilters == 4 {
+			ctx.scanCond.L.Lock()
+			ctx.scanCond.Wait()
+			ctx.scanCond.L.Unlock()
+		}
 	}
 	ctx.filterCond.L.Lock()
 	ctx.readComplete = true
