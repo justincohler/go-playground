@@ -42,11 +42,12 @@ type QueueRequest struct {
 	Image   *imgutil.PNGImage
 	Filters []string
 	OutFile string
+	goID    int
 }
 
-func spawnImageProcessor(ctx *Context) {
+func spawnImageProcessor(ctx *Context, goID int) {
 	defer ctx.wg.Done()
-	for {
+	for !(ctx.readComplete && ctx.qFilter.Empty()) {
 		ctx.filterCond.L.Lock()
 		ctx.filterCond.Wait()
 		if ctx.readComplete {
@@ -54,7 +55,9 @@ func spawnImageProcessor(ctx *Context) {
 			break
 		}
 		value := ctx.qFilter.Pop()
+		fmt.Println("Thread", goID, "received FILTER message")
 		request := value.(QueueRequest)
+		request.goID = goID
 		ctx.filterCond.L.Unlock()
 
 		request.Image = request.Image.ApplyFilters(request.Filters)
@@ -62,6 +65,7 @@ func spawnImageProcessor(ctx *Context) {
 		// Tell the saver there's a file to save
 		ctx.saveCond.L.Lock()
 		ctx.qSave.Push(request)
+		fmt.Println("Thread", goID, "sent SAVE message")
 		ctx.saveCond.Signal()
 		ctx.saveCond.L.Unlock()
 
@@ -75,10 +79,10 @@ func spawnImageWriter(ctx *Context, fileCount *int) {
 	for !ctx.readComplete || savedCount < *fileCount {
 		ctx.saveCond.L.Lock()
 		ctx.saveCond.Wait()
-		fmt.Println("Received SAVE signal.")
 		value := ctx.qSave.Pop()
 		ctx.saveCond.L.Unlock()
 		request := value.(QueueRequest)
+		fmt.Println("Thread", request.goID, "SAVE signal received")
 
 		request.Image.Save(request.OutFile)
 		savedCount++
@@ -90,7 +94,7 @@ func parseLine(line string) (string, string, []string) {
 	return lineArgs[0], lineArgs[1], lineArgs[2:]
 }
 
-func processSequential() {
+func processSerial() {
 	filePath := os.Args[1]
 	file, _ := os.Open(filePath)
 	defer file.Close()
@@ -101,7 +105,9 @@ func processSequential() {
 		img, _ := imgutil.Load(inFile)
 		img.Threads = 1
 
+		fmt.Println("Serially applying filters")
 		filteredImg := img.ApplyFilters(filters)
+		fmt.Println("Serially saving out file")
 		filteredImg.Save(outFile)
 	}
 }
@@ -114,7 +120,8 @@ func processParallel() {
 
 	for i := 0; i < nThreads; i++ {
 		ctx.wg.Add(1)
-		go spawnImageProcessor(ctx)
+		goID := i + 1
+		go spawnImageProcessor(ctx, goID)
 	}
 
 	go spawnImageWriter(ctx, &fileCount)
@@ -128,9 +135,10 @@ func processParallel() {
 
 		img, _ := imgutil.Load(inFile)
 		img.Threads = ctx.nThreads
-		request := QueueRequest{img, filters, outFile}
+		request := QueueRequest{Image: img, Filters: filters, OutFile: outFile}
 
 		ctx.filterCond.L.Lock()
+		fmt.Println("Thread 0* sent FILTER signal")
 		ctx.qFilter.Push(request)
 		ctx.filterCond.Signal()
 		ctx.filterCond.L.Unlock()
@@ -150,7 +158,7 @@ func processParallel() {
 
 func main() {
 	if len(os.Args) < 3 {
-		processSequential()
+		processSerial()
 	} else {
 		processParallel()
 	}
