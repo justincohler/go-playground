@@ -1,0 +1,89 @@
+CSV1 (0): 
+real	0m12.156s
+user	0m12.336s
+sys	0m0.094s
+
+CSV2(0): 
+real	1m18.456s
+user	1m19.173s
+sys	0m0.514s
+
+CSV3(0): 
+real	3m12.314s
+user	3m14.695s
+sys	0m0.730s
+
+CSV1 (1): 
+real	0m12.163s
+user	0m12.275s
+sys	0m0.106s
+
+CSV1 (2): 
+real	0m7.226s
+user	0m12.609s
+sys	0m0.116s
+
+CSV1 (4): 
+real	0m4.888s
+user	0m13.684s
+sys	0m0.133s
+
+CSV1 (6): 
+real	0m4.824s
+user	0m18.640s
+sys	0m0.161s
+
+CSV1 (8): 
+real	0m4.951s
+user	0m21.763s
+sys	0m0.172s
+
+CSV2(1): 
+real	1m18.175s
+user	1m18.691s
+sys	0m0.703s
+
+CSV2(2): 
+real	0m47.258s
+user	1m20.358s
+sys	0m0.743s
+
+CSV2(4): 
+real	0m32.969s
+user	1m27.960s
+sys	0m0.854s
+
+CSV2(6): 
+real	0m32.199s
+user	1m58.603s
+sys	0m0.983s
+
+CSV2(8): 
+real	0m31.756s
+user	2m24.143s
+sys	0m1.081s
+
+CSV3(1): 
+real	3m13.748s
+user	3m15.345s
+sys	0m1.423s
+
+CSV3(2): 
+real	1m54.439s
+user	3m20.097s
+sys	0m1.553s
+
+CSV3(4): 
+real	1m17.012s
+user	3m38.705s
+sys	0m1.741s
+
+CSV3(6): 
+real	1m16.045s
+user	5m3.706s
+sys	0m2.038s
+
+CSV3(8): 
+real	1m14.104s
+user	6m8.920s
+sys	0m2.034s
