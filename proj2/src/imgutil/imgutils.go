@@ -1,7 +1,6 @@
 package imgutil
 
 import (
-	// "fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -93,7 +92,6 @@ func (img *PNGImage) Grayscale() *PNGImage {
 
 	for y := bounds.Min.Y; y < bounds.Max.Y; y++ {
 		for x := bounds.Min.X; x < bounds.Max.X; x++ {
-			// fmt.Println(img.At(x, y).RGBA())
 			r, g, b, a := img.At(x, y).RGBA()
 			greyC := clamp(float64(r+g+b) / 3)
 			out.Set(x, y, color.RGBA64{greyC, greyC, greyC, uint16(a)})
@@ -189,7 +187,6 @@ func (img *PNGImage) neighbors(x, y int) [][]color.Color {
 				continue
 			}
 			color := img.At(x+i, y+j)
-			// fmt.Println("Color at", x+i, ",", y+j, "is", color)
 			neighbors[i+1][j+1] = color
 
 		}

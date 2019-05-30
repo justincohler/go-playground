@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"imgutil"
-	"math"
 	"os"
 	"queue"
 	"strconv"
@@ -19,15 +18,12 @@ type Context struct {
 	scanFilterLock sync.Mutex
 	scanCond       *sync.Cond
 	filterInCond   *sync.Cond
-	// filterSaveLock sync.Mutex
-	// filterOutCond  *sync.Cond
-	// saveCond       *sync.Cond
-	qFilter       queue.Stack
-	qSave         queue.Stack
-	nThreads      int
-	readComplete  bool
-	fileCount     int32
-	activeFilters int32
+	qFilter        queue.Stack
+	qSave          queue.Stack
+	nThreads       int
+	readComplete   bool
+	fileCount      int32
+	activeFilters  int32
 }
 
 // NewContext returns a new app context
@@ -35,8 +31,6 @@ func NewContext(nThreads int) *Context {
 	ctx := Context{}
 	ctx.scanCond = sync.NewCond(&ctx.scanFilterLock)
 	ctx.filterInCond = sync.NewCond(&ctx.scanFilterLock)
-	// ctx.filterOutCond = sync.NewCond(&ctx.filterSaveLock)
-	// ctx.saveCond = sync.NewCond(&ctx.filterSaveLock)
 	ctx.qFilter = queue.NewUnbounded()
 	ctx.qSave = queue.NewUnbounded()
 	ctx.nThreads = nThreads
@@ -48,10 +42,9 @@ type QueueRequest struct {
 	Image   *imgutil.PNGImage
 	Filters []string
 	OutFile string
-	goID    int
 }
 
-func spawnImageProcessor(ctx *Context, goID int) {
+func spawnImageProcessor(ctx *Context) {
 	defer ctx.wg.Done()
 	for !(ctx.readComplete && ctx.qFilter.Empty()) {
 		ctx.filterInCond.L.Lock()
@@ -63,45 +56,21 @@ func spawnImageProcessor(ctx *Context, goID int) {
 		value := ctx.qFilter.Pop()
 		ctx.filterInCond.L.Unlock()
 
-		fmt.Println("Thread", goID, "received FILTER message")
+		fmt.Println("Thread FILTER received message")
 		request := value.(QueueRequest)
-		request.goID = goID
 		request.Image = request.Image.ApplyFilters(request.Filters)
 
 		// Tell the saver there's a file to save
-		// ctx.filterOutCond.L.Lock()
-		// ctx.filterOutCond.Wait()
 		ctx.qSave.Push(request)
-		fmt.Println("Thread", goID, "sent SAVE signal")
-		// ctx.saveCond.Signal()
-		// ctx.filterOutCond.L.Unlock()
+		fmt.Println("Thread FILTER sent SAVE message")
 
 		// Tell the csv reader to send more work
 		ctx.scanCond.L.Lock()
 		atomic.AddInt32(&ctx.activeFilters, -1)
-		fmt.Println("Thread", goID, "ready for work!")
+		fmt.Println("Thread FILTER ready for work!")
 		ctx.scanCond.Signal()
 		ctx.scanCond.L.Unlock()
 	}
-	fmt.Println("Thread", goID, "done filtering")
-}
-
-func spawnImageWriter(ctx *Context) {
-	defer ctx.wg.Done()
-	for !ctx.readComplete || atomic.LoadInt32(&ctx.fileCount) > 0 {
-
-		// ctx.saveCond.L.Lock()
-		// ctx.saveCond.Wait()
-		value := ctx.qSave.Pop()
-		request := value.(QueueRequest)
-		fmt.Println("Thread", request.goID, "received SAVE signal")
-
-		request.Image.Save(request.OutFile)
-		atomic.AddInt32(&ctx.fileCount, -1)
-		// ctx.filterOutCond.Signal()
-		// ctx.saveCond.L.Unlock()
-	}
-	fmt.Println("Finished Writing All Images.")
 }
 
 func parseLine(line string) (string, string, []string) {
@@ -130,17 +99,10 @@ func processSerial() {
 func processParallel() {
 	sThreads, filePath := os.Args[1], os.Args[2]
 	nThreads, _ := strconv.Atoi(sThreads)
-	nThreads = int(math.Sqrt(float64(nThreads))) // to allow for both data and functional parallelism
 	ctx := NewContext(nThreads)
 
-	for i := 0; i < nThreads; i++ {
-		goID := i + 1
-		ctx.wg.Add(1)
-		go spawnImageProcessor(ctx, goID)
-	}
-
 	ctx.wg.Add(1)
-	go spawnImageWriter(ctx)
+	go spawnImageProcessor(ctx)
 
 	file, _ := os.Open(filePath)
 	defer file.Close()
@@ -152,19 +114,15 @@ func processParallel() {
 		img, _ := imgutil.Load(inFile)
 		img.Threads = ctx.nThreads
 		request := QueueRequest{Image: img, Filters: filters, OutFile: outFile}
-
-		activeFilters := atomic.AddInt32(&ctx.activeFilters, 1)
 		atomic.AddInt32(&ctx.fileCount, 1)
 
 		ctx.qFilter.Push(request)
 		ctx.filterInCond.Signal()
 		fmt.Println("Thread 0* sent FILTER signal")
 
-		if activeFilters == int32(ctx.nThreads) {
-			ctx.scanCond.L.Lock()
-			ctx.scanCond.Wait()
-			ctx.scanCond.L.Unlock()
-		}
+		ctx.scanCond.L.Lock()
+		ctx.scanCond.Wait()
+		ctx.scanCond.L.Unlock()
 	}
 	ctx.filterInCond.L.Lock()
 	ctx.readComplete = true
@@ -172,6 +130,17 @@ func processParallel() {
 	ctx.filterInCond.L.Unlock()
 
 	ctx.wg.Wait()
+
+	for ctx.fileCount > 0 {
+		value := ctx.qSave.Pop()
+		request := value.(QueueRequest)
+		fmt.Println("Thread SAVE received message")
+
+		request.Image.Save(request.OutFile)
+		ctx.fileCount--
+	}
+
+	fmt.Println("Finished Writing All Images.")
 }
 
 func main() {
