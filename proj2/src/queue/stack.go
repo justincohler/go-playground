@@ -59,9 +59,7 @@ func (q *UnboundedQueue) Pop() Value {
 
 // Empty returns true if the queue is empty
 func (q *UnboundedQueue) Empty() bool {
-	q.enqLock.Lock()
 	q.deqLock.Lock()
-	defer q.enqLock.Unlock()
 	defer q.deqLock.Unlock()
 	if q.head.next == nil {
 		return true

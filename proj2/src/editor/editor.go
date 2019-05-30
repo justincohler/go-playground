@@ -9,7 +9,6 @@ import (
 	"strconv"
 	"strings"
 	"sync"
-	"sync/atomic"
 )
 
 // Context allows for further parallelization
@@ -22,8 +21,6 @@ type Context struct {
 	qSave          queue.Stack
 	nThreads       int
 	readComplete   bool
-	fileCount      int32
-	activeFilters  int32
 }
 
 // NewContext returns a new app context
@@ -66,7 +63,6 @@ func spawnImageProcessor(ctx *Context) {
 
 		// Tell the csv reader to send more work
 		ctx.scanCond.L.Lock()
-		atomic.AddInt32(&ctx.activeFilters, -1)
 		fmt.Println("Thread FILTER ready for work!")
 		ctx.scanCond.Signal()
 		ctx.scanCond.L.Unlock()
@@ -114,7 +110,6 @@ func processParallel() {
 		img, _ := imgutil.Load(inFile)
 		img.Threads = ctx.nThreads
 		request := QueueRequest{Image: img, Filters: filters, OutFile: outFile}
-		atomic.AddInt32(&ctx.fileCount, 1)
 
 		ctx.qFilter.Push(request)
 		ctx.filterInCond.Signal()
@@ -131,13 +126,12 @@ func processParallel() {
 
 	ctx.wg.Wait()
 
-	for ctx.fileCount > 0 {
+	for !ctx.qSave.Empty() {
 		value := ctx.qSave.Pop()
 		request := value.(QueueRequest)
 		fmt.Println("Thread SAVE received message")
 
 		request.Image.Save(request.OutFile)
-		ctx.fileCount--
 	}
 
 	fmt.Println("Finished Writing All Images.")
