@@ -137,8 +137,8 @@ func (img *PNGImage) BlockConvolution(kernel [][]float64) *PNGImage {
 
 	blockSize := (bounds.Max.Y - bounds.Min.Y) / img.Threads
 	for i := 0; i < img.Threads; i++ {
-		maxY := math.Max(float64(bounds.Max.Y), float64((i+1)*blockSize))
-		blockBounds := image.Rect(bounds.Min.X, i*blockSize, bounds.Max.X, int(maxY))
+		maxY := int(math.Min(float64(bounds.Max.Y), float64((i+1)*blockSize)))
+		blockBounds := image.Rect(bounds.Min.X, i*blockSize, bounds.Max.X, maxY)
 		img.wg.Add(1)
 		go img.Convolution(out, blockBounds, kernel)
 
