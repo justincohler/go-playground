@@ -6,19 +6,15 @@ import (
 
 // Stack provides a stack for str values.
 type Stack interface {
-	Push(value Value)
-	Pop() Value
+	Push(value interface{})
+	Pop() interface{}
 	Empty() bool
 }
 
 // Node provides a linked-list node style for str values.
 type Node struct {
-	value Value
+	value interface{}
 	next  *Node
-}
-
-// Value acts as a generic interface to perform queue ops on any object.
-type Value interface {
 }
 
 // UnboundedQueue is a linked-list unbounded queue impl.
@@ -30,7 +26,7 @@ type UnboundedQueue struct {
 }
 
 // Push adds a value to the tail of the queue.
-func (q *UnboundedQueue) Push(value Value) {
+func (q *UnboundedQueue) Push(value interface{}) {
 	q.enqLock.Lock()
 	defer q.enqLock.Unlock()
 
@@ -40,8 +36,8 @@ func (q *UnboundedQueue) Push(value Value) {
 }
 
 // Pop returns (and removes) a value from the head of the queue.
-func (q *UnboundedQueue) Pop() Value {
-	var res Value
+func (q *UnboundedQueue) Pop() interface{} {
+	var res interface{}
 	for {
 		q.deqLock.Lock()
 		if q.head.next == nil {
