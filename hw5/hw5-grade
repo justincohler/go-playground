@@ -1,0 +1,83 @@
+/* hw5 guideline */
+/* MPCS52060, Spring 2019 */
+
+/* === SAQ Evaluation === */
+/* SAQ1           5/5  */ 
+/* SAQ2           5/5  */ 
+/* SAQ3		  5/5  */  
+/* SAQ4.1 	  8/10 */ 
+/* SAQ4.2 	  5/5  */ 
+/* SAQ5           5/5  */ 
+/* SAQ6           25/28 */ 
+/* SAQ7		  29/32 */  
+/* SAQ7.1 	  5/5 */ 
+
+
+
+/* _TOTAL-SCORE_    92/100 */
+
+/* graded by Collin Olander */
+
+Notes:
+
+Nice write up! Good use of examples to describe potential thread conflicts. 
+
+SAQ4 -2 -> occassional "index out of range" runtime errors with pop()
+If you run the program several times, it will eventually crash with the following stack trace
+
+justincohler/hw5/src/test> go run test.go
+Bounded two lock queue...
+Pushed 2
+panic: runtime error: index out of range
+
+goroutine 11 [running]:
+stack.(*BoundedTwoLockQueue).Pop(0xc000090000, 0x4c31d0)
+        /justincohler/hw5/src/stack/bounded_twolock.go:44 +0x1c2
+main.pop(0xc0000140d0, 0x4d42a0, 0xc000090000, 0x0)
+        /justincohler/hw5/src/test/test.go:16 +0x60
+created by main.main
+        /justincohler/hw5/src/test/test.go:34 +0x310
+exit status 2
+
+
+
+SAQ6 -3 -> No "panic" when popping empty UnboundedQueue
+calling pop() on an empty queue should panic. Your implementation says 
+
+fmt.Println("Popped", res)
+return res // will return 0 if poping empty queue
+
+but if you comment out the pushes, and run your test like this
+
+	var unbounded stack.IntStack
+	unbounded = stack.NewUnbounded()
+
+	wg.Add(8)
+	/*go push(&wg, unbounded, 1)
+	go push(&wg, unbounded, 2)
+	go push(&wg, unbounded, 3)
+	go push(&wg, unbounded, 4)*/
+	go pop(&wg, unbounded)
+	go pop(&wg, unbounded)
+	go pop(&wg, unbounded)
+	go pop(&wg, unbounded)
+
+the program execution stalls out after printing "Unbounded queue..."
+
+Also, returning 0 wouldn't be the behavior we'd want anyway. Since the queue is of integers, it'd be misleading to call pop() and get 0 returned.
+That would make it seem like earlier, a push(&wg, unbounded, 0) call had occurred.
+
+SAQ7 -3 -> No "panic" when popping empty BoundedQueue
+Unlike the previous unbounded queue stalling out without an empty check, if we call several 'go pop(&wg, bounded)' without any push() calls we get
+/justincohler/hw5/src/test> go run test.go
+Bounded two lock queue...
+Pushed 1
+Popped 1
+Pushed 2
+Pushed 3
+Popped 2
+Pushed 4
+Popped 3
+Popped 4
+Bounded queue...
+fatal error: all goroutines are asleep - deadlock!
