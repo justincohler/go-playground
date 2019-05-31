@@ -1,3 +1,7 @@
+// Attribution for the initial body math & structure goes to:
+//
+// http://www.cyber-omelette.com/2016/11/python-n-body-orbital-simulation.html#theprogram
+//
 package main
 
 import (
