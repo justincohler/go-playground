@@ -1,0 +1,17 @@
+/* proj2 guideline */
+/* MPCS52060, Spring 2019 */
+
+/* === Evaluation === */
+/* Completeness (& Correctness) 	  */
+/*       Sequential version (including convolution) 17/20 */
+/* -3 -> Your images don't match the test result images. */
+/* Image output mismatch */
+/*       Parallel version                           28/31 */
+/* -3 -> Your parallel default does not use NumCPU threads. */
+/*       Performance Analysis Writeup	            37/37 */
+/* Design & Style             	                    10/12 */
+/* -2 -> You did not implement -p as a flag. */
+
+/* _TOTAL-SCORE_    92/100 */
+
+/* graded by Kiran */
