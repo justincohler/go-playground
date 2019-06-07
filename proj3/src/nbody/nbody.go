@@ -9,11 +9,13 @@ import (
 	"runtime"
 )
 
+// block is a utility to pass between worker channels to assign work ranges
 type block struct {
 	start int
 	end   int
 }
 
+// worker receives a range of data to work on, updates the locations of the bodies at each of its indices
 func worker(bodies []*physics.Body, nDaysPerStep int, blockChan <-chan block, resultChan chan<- int) {
 	for block := range blockChan {
 		for j := block.start; j < block.end; j++ {
@@ -23,6 +25,7 @@ func worker(bodies []*physics.Body, nDaysPerStep int, blockChan <-chan block, re
 	}
 }
 
+// simulate runs a BSP style simulation using channel synchronization
 func simulate(bodies []*physics.Body, nThreads int, nDaysPerStep int, done <-chan interface{}) <-chan interface{} {
 	N := len(bodies)
 	stepDone := make(chan interface{})
@@ -55,6 +58,7 @@ func simulate(bodies []*physics.Body, nThreads int, nDaysPerStep int, done <-cha
 	return stepDone
 }
 
+// generateBodies returns a list of pointers to randomized Body objects
 func generateBodies(nBodies int) []*physics.Body {
 	bodies := make([]*physics.Body, nBodies)
 	for i := 0; i < nBodies; i++ {
