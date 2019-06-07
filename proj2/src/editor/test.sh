@@ -1,13 +1,13 @@
 cd csv1 
 echo "0 Threads"
-(time ../editor csv_file_1.csv) 2>../times.txt
+(time ../editor csv_file_1.csv) 2>../times2.txt
 echo "1 Threads"
-(time ../editor 1 csv_file_1.csv) 2>>../times.txt
+(time ../editor 1 csv_file_1.csv) 2>>../times2.txt
 echo "2 Threads"
-(time ../editor 2 csv_file_1.csv) 2>>../times.txt
+(time ../editor 2 csv_file_1.csv) 2>>../times2.txt
 echo "4 Threads"
-(time ../editor 4 csv_file_1.csv) 2>>../times.txt
+(time ../editor 4 csv_file_1.csv) 2>>../times2.txt
 echo "6 Threads"
-(time ../editor 6 csv_file_1.csv) 2>>../times.txt
+(time ../editor 6 csv_file_1.csv) 2>>../times2.txt
 echo "8 Threads"
-(time ../editor 8 csv_file_1.csv) 2>>../times.txt
+(time ../editor 8 csv_file_1.csv) 2>>../times2.txt

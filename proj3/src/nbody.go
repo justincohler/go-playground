@@ -9,97 +9,55 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"physics"
 	"runtime"
 	"strconv"
 )
 
-// Vector contains metadata associated with x, y
-type Vector struct {
-	x float64
-	y float64
-	z float64
-}
-
-// Body contains position, mass, and velocity associated with a body
-type Body struct {
-	mass         float64
-	velocity     Vector
-	acceleration Vector
-	location     Vector
-}
-
-func (body *Body) updateAcceleration(otherBodies []*Body) {
-	const G = 6.67408e-11
-	for _, otherBody := range otherBodies {
-		if body != otherBody {
-			dist := math.Pow((body.location.x - otherBody.location.x), 2)
-			dist += math.Pow((body.location.y - otherBody.location.y), 2)
-			dist += math.Pow((body.location.z - otherBody.location.z), 2)
-			dist = math.Sqrt(dist)
-			pull := G * otherBody.mass / math.Pow(dist, 3)
-			body.acceleration.x += pull * (otherBody.location.x - body.location.x)
-			body.acceleration.y += pull * (otherBody.location.y - body.location.y)
-			body.acceleration.z += pull * (otherBody.location.z - body.location.z)
-		}
+func blockUpdateLocations(start int, end int, bodies []*physics.Body, bodyCounter chan<- int, nDaysPerStep int) {
+	for j := start; j < end; j++ {
+		bodies[j].UpdateLocation(bodies, nDaysPerStep)
+		bodyCounter <- j
 	}
-
 }
 
-func (body *Body) updateVelocity(otherBodies []*Body) {
-	body.updateAcceleration(otherBodies)
-	body.velocity.x += body.acceleration.x
-	body.velocity.y += body.acceleration.y
-	body.velocity.z += body.acceleration.z
-}
-
-// UpdateLocation finds the next location of a given body
-func (body *Body) UpdateLocation(otherBodies []*Body) {
-	body.updateVelocity(otherBodies)
-	body.location.x += body.velocity.x
-	body.location.y += body.velocity.y
-	body.location.z += body.velocity.z
-}
-
-func simulate(bodies []*Body, nThreads int) <-chan []Vector {
+func simulate(bodies []*physics.Body, nThreads int, nDaysPerStep int) <-chan interface{} {
 	N := len(bodies)
-	stepChan := make(chan []Vector)
-	bodyCounter := make(chan interface{}, N)
+	stepDone := make(chan interface{})
+	bodyCounter := make(chan int, N)
+
+	parallelismFactor := int(math.Min(float64(nThreads), float64(N)))
 
 	go func() {
 		for {
-			stepLocations := make([]Vector, N)
-			for i := 0; i < nThreads; i++ {
-				blockSize := math.Ceil(float64(N) / float64(nThreads))
+			for i := 0; i < parallelismFactor; i++ {
+
+				blockSize := math.Ceil(float64(N) / float64(parallelismFactor))
 				start := int(float64(i) * blockSize)
 				end := int(math.Min(float64(N), (float64(i)+1)*blockSize))
-				go func() { // functional parallelism
-					for j := start; j < end; j++ {
-						body := bodies[j]
-						body.UpdateLocation(bodies)
-						stepLocations[j] = body.location
-						bodyCounter <- j
-					}
-				}()
+
+				go blockUpdateLocations(start, end, bodies, bodyCounter, nDaysPerStep) // functional parallelism
 			}
 
-			for i := 0; i < nThreads; i++ { // wait for step to complete
+			for i := 0; i < parallelismFactor; i++ { // wait for step to complete
 				<-bodyCounter
 			}
-			stepChan <- stepLocations
+			stepDone <- true
 		}
 	}()
-	return stepChan
+	return stepDone
 }
 
-func generateBodies(nBodies int) []*Body {
-	bodies := make([]*Body, nBodies)
+func generateBodies(nBodies int) []*physics.Body {
+	bodies := make([]*physics.Body, nBodies)
 	for i := 0; i < nBodies; i++ {
 		mass := 1e20 + rand.Float64()*(1e30-1e20)
-		bodies[i] = &Body{
-			mass:         mass,
-			velocity:     Vector{rand.Float64() * 100000, rand.Float64() * 100000, rand.Float64() * 100000},
-			acceleration: Vector{},
-			location:     Vector{rand.Float64() * 1e20, rand.Float64() * 1e20, rand.Float64() * 1e20}}
+		bodies[i] = &physics.Body{
+			ID:           i,
+			Mass:         mass,
+			Velocity:     physics.Vector{},
+			Acceleration: physics.Vector{},
+			Location:     physics.Vector{rand.Float64() * 1e10, rand.Float64() * 1e10, rand.Float64() * 1e10}}
 	}
 	return bodies
 }
@@ -108,16 +66,26 @@ func main() {
 
 	nBodies, _ := strconv.Atoi(os.Args[1])
 	steps, _ := strconv.Atoi(os.Args[2])
+	nDaysPerStep, _ := strconv.Atoi(os.Args[3])
+
+	if nBodies == 1 {
+		panic("Simulator requires at least two bodies.")
+	}
+
 	bodies := generateBodies(nBodies)
 
 	nThreads := runtime.NumCPU()
-	stepChan := simulate(bodies, nThreads)
+	stepDone := simulate(bodies, nThreads, nDaysPerStep)
 
-	for stepLocations := range stepChan {
+	for range stepDone {
 		if steps == 0 {
 			break
 		}
-		fmt.Println(stepLocations)
+		for _, body := range bodies {
+			if steps%1000 == 0 {
+				fmt.Print(body.Location, ";")
+			}
+		}
 		steps--
 	}
 }
