@@ -1,4 +1,4 @@
-// Attribution for the initial body math & structure goes to:
+// Attribution for the body math & structure inspiration goes to:
 //
 // http://www.cyber-omelette.com/2016/11/python-n-body-orbital-simulation.html#theprogram
 //
@@ -13,40 +13,47 @@ import (
 	"runtime"
 )
 
-func blockUpdateLocations(start int, end int, bodies []*physics.Body, bodyCounter chan<- int, nDaysPerStep int) {
-	for j := start; j < end; j++ {
-		bodies[j].UpdateLocation(bodies, nDaysPerStep)
-		bodyCounter <- j
+type block struct {
+	start int
+	end   int
+}
+
+func worker(bodies []*physics.Body, nDaysPerStep int, blockChan <-chan block, resultChan chan<- int) {
+	for block := range blockChan {
+		for j := block.start; j < block.end; j++ {
+			bodies[j].UpdateLocation(bodies, nDaysPerStep)
+		}
+		resultChan <- 1
 	}
 }
 
 func simulate(bodies []*physics.Body, nThreads int, nDaysPerStep int, done <-chan interface{}) <-chan interface{} {
 	N := len(bodies)
 	stepDone := make(chan interface{})
-	bodyCounter := make(chan int, N)
-
-	parallelismFactor := int(math.Min(float64(nThreads), float64(N)))
-
+	workerResultChan := make(chan int, N)
+	nBlocks := int(math.Min(float64(nThreads), float64(N)))
+	blockChan := make(chan block, nBlocks)
+	for i := 0; i < nBlocks; i++ {
+		go worker(bodies, nDaysPerStep, blockChan, workerResultChan) // functional block parallelism
+	}
 	go func() {
 		for {
-			for i := 0; i < parallelismFactor; i++ {
+			for i := 0; i < nBlocks; i++ {
+				blockSize := math.Ceil(float64(N) / float64(nBlocks))
+				block := block{
+					start: int(float64(i) * blockSize),
+					end:   int(math.Min(float64(N), (float64(i)+1)*blockSize))}
 
-				blockSize := math.Ceil(float64(N) / float64(parallelismFactor))
-				start := int(float64(i) * blockSize)
-				end := int(math.Min(float64(N), (float64(i)+1)*blockSize))
-
-				go blockUpdateLocations(start, end, bodies, bodyCounter, nDaysPerStep) // functional parallelism
+				blockChan <- block
 			}
-
-			for i := 0; i < parallelismFactor; i++ { // wait for step to complete
-				<-bodyCounter
+			for i := 0; i < nBlocks; i++ { // need to wait for step to complete
+				<-workerResultChan
 			}
 			select {
 			case <-done:
 				return
 			case stepDone <- true:
 			}
-
 		}
 	}()
 	return stepDone
@@ -61,7 +68,10 @@ func generateBodies(nBodies int) []*physics.Body {
 			Mass:         mass,
 			Velocity:     physics.Vector{},
 			Acceleration: physics.Vector{},
-			Location:     physics.Vector{rand.Float64() * 1e10, rand.Float64() * 1e10, rand.Float64() * 1e10}}
+			Location: physics.Vector{
+				rand.Float64() * 1e10,
+				rand.Float64() * 1e10,
+				rand.Float64() * 1e10}}
 	}
 	return bodies
 }
@@ -87,7 +97,7 @@ func main() {
 	}
 
 	done := make(chan interface{})
-	defer close(done)
+	// defer close(done)
 
 	stepDone := simulate(bodies, *nThreads, *nDaysPerStep, done)
 
