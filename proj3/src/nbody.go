@@ -7,6 +7,9 @@ package main
 import (
 	"fmt"
 	"math"
+	"math/rand"
+	"os"
+	"strconv"
 )
 
 // Vector contains metadata associated with x, y
@@ -66,35 +69,46 @@ func simulate(bodies []*Body, steps int) [][]Vector {
 	}
 
 	for i := 0; i < steps; i++ {
+		converged := true
 		for j, body := range bodies {
+
 			body.UpdateLocation(bodies)
 			history[i][j] = body.location
+
+			// When all bodies stop accelerating, they have converged
+			noAcceleration := Vector{0, 0, 0}
+			if body.acceleration != noAcceleration {
+				converged = false
+			}
+		}
+		if converged == true {
+			break
 		}
 	}
 	return history
 }
 
+func generate_bodies(nBodies int) []*Body {
+	bodies := make([]*Body, nBodies)
+	for i := 0; i < nBodies; i++ {
+		mass := 1e20 + rand.Float64()*(1e30-1e20)
+		bodies[i] = &Body{
+			mass:         mass,
+			velocity:     Vector{rand.Float64() * 100000, rand.Float64() * 100000, rand.Float64() * 100000},
+			acceleration: Vector{},
+			location:     Vector{rand.Float64() * 1e20, rand.Float64() * 1e20, rand.Float64() * 1e20}}
+	}
+	return bodies
+}
+
 func main() {
 
-	sun := &Body{
-		mass:         2e30,
-		velocity:     Vector{},
-		acceleration: Vector{},
-		location:     Vector{}}
-	mercury := &Body{
-		mass:         3e23,
-		velocity:     Vector{47000, 0, 0},
-		acceleration: Vector{},
-		location:     Vector{0, 6e10, 0}}
-	venus := &Body{
-		mass:         4e24,
-		velocity:     Vector{35000, 0, 0},
-		acceleration: Vector{},
-		location:     Vector{0, 1e11, 0}}
+	// nThreads, _ := strconv.Atoi(os.Args[1])
+	nBodies, _ := strconv.Atoi(os.Args[2])
 
-	bodies := []*Body{sun, mercury, venus}
+	bodies := generate_bodies(nBodies)
 
-	history := simulate(bodies, 10)
+	history := simulate(bodies, 100)
 
 	for i, point := range history {
 		fmt.Println(i, ":", point)
