@@ -9,6 +9,7 @@ import (
 	"math"
 	"math/rand"
 	"os"
+	"runtime"
 	"strconv"
 )
 
@@ -59,36 +60,38 @@ func (body *Body) UpdateLocation(otherBodies []*Body) {
 	body.location.z += body.velocity.z
 }
 
-func simulate(bodies []*Body, steps int) [][]Vector {
+func simulate(bodies []*Body, nThreads int) <-chan []Vector {
 	N := len(bodies)
+	stepChan := make(chan []Vector)
+	bodyCounter := make(chan interface{}, N)
 
-	// Make a history of all body positions for each step
-	history := make([][]Vector, steps)
-	for i := range history {
-		history[i] = make([]Vector, N)
-	}
-
-	for i := 0; i < steps; i++ {
-		converged := true
-		for j, body := range bodies {
-
-			body.UpdateLocation(bodies)
-			history[i][j] = body.location
-
-			// When all bodies stop accelerating, they have converged
-			noAcceleration := Vector{0, 0, 0}
-			if body.acceleration != noAcceleration {
-				converged = false
+	go func() {
+		for {
+			stepLocations := make([]Vector, N)
+			for i := 0; i < nThreads; i++ {
+				blockSize := math.Ceil(float64(N) / float64(nThreads))
+				start := int(float64(i) * blockSize)
+				end := int(math.Min(float64(N), (float64(i)+1)*blockSize))
+				go func() { // functional parallelism
+					for j := start; j < end; j++ {
+						body := bodies[j]
+						body.UpdateLocation(bodies)
+						stepLocations[j] = body.location
+						bodyCounter <- j
+					}
+				}()
 			}
+
+			for i := 0; i < nThreads; i++ { // wait for step to complete
+				<-bodyCounter
+			}
+			stepChan <- stepLocations
 		}
-		if converged == true {
-			break
-		}
-	}
-	return history
+	}()
+	return stepChan
 }
 
-func generate_bodies(nBodies int) []*Body {
+func generateBodies(nBodies int) []*Body {
 	bodies := make([]*Body, nBodies)
 	for i := 0; i < nBodies; i++ {
 		mass := 1e20 + rand.Float64()*(1e30-1e20)
@@ -103,14 +106,18 @@ func generate_bodies(nBodies int) []*Body {
 
 func main() {
 
-	// nThreads, _ := strconv.Atoi(os.Args[1])
-	nBodies, _ := strconv.Atoi(os.Args[2])
+	nBodies, _ := strconv.Atoi(os.Args[1])
+	steps, _ := strconv.Atoi(os.Args[2])
+	bodies := generateBodies(nBodies)
 
-	bodies := generate_bodies(nBodies)
+	nThreads := runtime.NumCPU()
+	stepChan := simulate(bodies, nThreads)
 
-	history := simulate(bodies, 100)
-
-	for i, point := range history {
-		fmt.Println(i, ":", point)
+	for stepLocations := range stepChan {
+		if steps == 0 {
+			break
+		}
+		fmt.Println(stepLocations)
+		steps--
 	}
 }
