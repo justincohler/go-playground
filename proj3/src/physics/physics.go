@@ -1,7 +1,10 @@
+// Attribution for the body math & structure inspiration goes to:
+//
+// http://www.cyber-omelette.com/2016/11/python-n-body-orbital-simulation.html#theprogram
+//
 package physics
 
 import (
-	// "fmt"
 	"math"
 )
 
@@ -21,6 +24,7 @@ type Body struct {
 	Location     Vector
 }
 
+// updateAcceleration performs a calculation to determine new acceleration for a body
 func (body *Body) updateAcceleration(otherBodies []*Body) {
 	const G = 6.67408e-11
 	for _, otherBody := range otherBodies {
@@ -39,6 +43,7 @@ func (body *Body) updateAcceleration(otherBodies []*Body) {
 
 }
 
+// updateVelocity performs a calcualtion to determine new velocity for a body
 func (body *Body) updateVelocity(otherBodies []*Body, nSecondsPerStep float64) {
 	body.updateAcceleration(otherBodies)
 	body.Velocity.X += body.Acceleration.X * nSecondsPerStep

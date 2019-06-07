@@ -1,7 +1,3 @@
-// Attribution for the body math & structure inspiration goes to:
-//
-// http://www.cyber-omelette.com/2016/11/python-n-body-orbital-simulation.html#theprogram
-//
 package main
 
 import (
@@ -77,12 +73,10 @@ func generateBodies(nBodies int) []*physics.Body {
 }
 
 func main() {
-
 	nBodies := flag.Int("bodies", 8, "number of bodies to simulate")
 	steps := flag.Int("steps", 1000, "number of steps to simulate")
 	nDaysPerStep := flag.Int("daysPerStep", 5, "number of days per simulation step")
 	nThreads := flag.Int("threads", runtime.NumCPU(), "number of threads to parallelize")
-
 	flag.Parse()
 
 	if *nBodies == 1 {
@@ -97,15 +91,12 @@ func main() {
 	}
 
 	done := make(chan interface{})
-	// defer close(done)
-
 	stepDone := simulate(bodies, *nThreads, *nDaysPerStep, done)
 
 	for range stepDone {
 		if *steps == 0 {
 			break
 		}
-
 		*steps--
 	}
 	fmt.Println("Final Locations:")

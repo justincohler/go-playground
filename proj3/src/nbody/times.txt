@@ -1,0 +1,68 @@
+Starting Single Thread...
+
+real	0m0.485s
+user	0m0.000s
+sys	0m0.015s
+
+real	0m3.639s
+user	0m0.015s
+sys	0m0.000s
+
+real	0m7.425s
+user	0m0.015s
+sys	0m0.000s
+
+real	1m14.008s
+user	0m0.000s
+sys	0m0.015s
+Starting Two Thread...
+
+real	0m0.383s
+user	0m0.015s
+sys	0m0.000s
+
+real	0m2.936s
+user	0m0.000s
+sys	0m0.015s
+
+real	0m4.297s
+user	0m0.000s
+sys	0m0.015s
+
+real	0m42.173s
+user	0m0.015s
+sys	0m0.000s
+Starting Two Thread...
+
+real	0m0.378s
+user	0m0.000s
+sys	0m0.015s
+
+real	0m3.044s
+user	0m0.015s
+sys	0m0.000s
+
+real	0m3.552s
+user	0m0.047s
+sys	0m0.015s
+
+real	0m34.958s
+user	0m0.000s
+sys	0m0.015s
+Starting Two Thread...
+
+real	0m0.361s
+user	0m0.015s
+sys	0m0.000s
+
+real	0m2.817s
+user	0m0.000s
+sys	0m0.015s
+
+real	0m3.882s
+user	0m0.015s
+sys	0m0.015s
+
+real	0m38.290s
+user	0m0.000s
+sys	0m0.015s
