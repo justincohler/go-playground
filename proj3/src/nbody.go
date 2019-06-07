@@ -5,13 +5,12 @@
 package main
 
 import (
+	"flag"
 	"fmt"
 	"math"
 	"math/rand"
-	"os"
 	"physics"
 	"runtime"
-	"strconv"
 )
 
 func blockUpdateLocations(start int, end int, bodies []*physics.Body, bodyCounter chan<- int, nDaysPerStep int) {
@@ -21,7 +20,7 @@ func blockUpdateLocations(start int, end int, bodies []*physics.Body, bodyCounte
 	}
 }
 
-func simulate(bodies []*physics.Body, nThreads int, nDaysPerStep int) <-chan interface{} {
+func simulate(bodies []*physics.Body, nThreads int, nDaysPerStep int, done <-chan interface{}) <-chan interface{} {
 	N := len(bodies)
 	stepDone := make(chan interface{})
 	bodyCounter := make(chan int, N)
@@ -42,7 +41,12 @@ func simulate(bodies []*physics.Body, nThreads int, nDaysPerStep int) <-chan int
 			for i := 0; i < parallelismFactor; i++ { // wait for step to complete
 				<-bodyCounter
 			}
-			stepDone <- true
+			select {
+			case <-done:
+				return
+			case stepDone <- true:
+			}
+
 		}
 	}()
 	return stepDone
@@ -64,28 +68,39 @@ func generateBodies(nBodies int) []*physics.Body {
 
 func main() {
 
-	nBodies, _ := strconv.Atoi(os.Args[1])
-	steps, _ := strconv.Atoi(os.Args[2])
-	nDaysPerStep, _ := strconv.Atoi(os.Args[3])
+	nBodies := flag.Int("bodies", 8, "number of bodies to simulate")
+	steps := flag.Int("steps", 1000, "number of steps to simulate")
+	nDaysPerStep := flag.Int("daysPerStep", 5, "number of days per simulation step")
+	nThreads := flag.Int("threads", runtime.NumCPU(), "number of threads to parallelize")
 
-	if nBodies == 1 {
+	flag.Parse()
+
+	if *nBodies == 1 {
 		panic("Simulator requires at least two bodies.")
 	}
 
-	bodies := generateBodies(nBodies)
+	bodies := generateBodies(*nBodies)
 
-	nThreads := runtime.NumCPU()
-	stepDone := simulate(bodies, nThreads, nDaysPerStep)
+	fmt.Println("Initial Locations:")
+	for _, body := range bodies {
+		fmt.Println("Body", body.ID, ":", body.Location)
+	}
+
+	done := make(chan interface{})
+	defer close(done)
+
+	stepDone := simulate(bodies, *nThreads, *nDaysPerStep, done)
 
 	for range stepDone {
-		if steps == 0 {
+		if *steps == 0 {
 			break
 		}
-		for _, body := range bodies {
-			if steps%1000 == 0 {
-				fmt.Print(body.Location, ";")
-			}
-		}
-		steps--
+
+		*steps--
 	}
+	fmt.Println("Final Locations:")
+	for _, body := range bodies {
+		fmt.Println("Body", body.ID, ":", body.Location)
+	}
+
 }
